@@ -14,7 +14,10 @@ pnpm dev
 bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:5173](http://localhost:5173) with your browser to see the result.
+
+The backend base URL is configured with `NEXT_PUBLIC_API_URL` in `.env`. Copy
+`.env.example` to `.env` and adjust the URL if your backend runs elsewhere.
 
 You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
 
