@@ -1,8 +1,8 @@
 "use client";
 
-import { useCallback } from "react";
+import { useCallback, useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, Box, Compass, Moon, Scan, Sun } from "lucide-react";
+import { ArrowLeft, Box, Compass, Moon, Save, Scan, Sun } from "lucide-react";
 import { useEditor } from "@pascal-app/editor";
 import { useViewer } from "@pascal-app/viewer";
 import s from "./editor.module.css";
@@ -23,6 +23,9 @@ interface Props {
   onToggleTema: () => void;
   tonoGuardado: TonoGuardado;
   mensajeGuardado?: string | null;
+  /** Con `true` el proyecto abierto es de solo lectura (permiso LECTOR). */
+  soloLectura?: boolean;
+  onGuardarVersion?: () => void;
 }
 
 export function EditorNavbar({
@@ -31,6 +34,8 @@ export function EditorNavbar({
   onToggleTema,
   tonoGuardado,
   mensajeGuardado,
+  soloLectura = false,
+  onGuardarVersion,
 }: Props) {
   const viewMode = useEditor((st) => st.viewMode);
   const mode = useEditor((st) => st.mode);
@@ -44,6 +49,18 @@ export function EditorNavbar({
     setMode("select");
     setTool(null);
   }, [setMode, setTool]);
+
+  const [guardandoVersion, setGuardandoVersion] = useState(false);
+
+  const guardarVersion = useCallback(async () => {
+    if (!onGuardarVersion || guardandoVersion) return;
+    setGuardandoVersion(true);
+    try {
+      await onGuardarVersion();
+    } finally {
+      setGuardandoVersion(false);
+    }
+  }, [onGuardarVersion, guardandoVersion]);
 
   return (
     <div className={s.topbar}>
@@ -62,14 +79,44 @@ export function EditorNavbar({
       <span className={s.projectName}>{nombreProyecto}</span>
 
       <div className="ml-auto flex items-center gap-2">
-        <div
-          className={s.saveState}
-          data-tone={tonoGuardado}
-          title={mensajeGuardado ?? undefined}
-        >
-          <span className={s.saveDot} data-tone={tonoGuardado} />
-          <span>{TEXTO_TONO[tonoGuardado]}</span>
-        </div>
+        {soloLectura ? (
+          <span
+            className={s.saveState}
+            data-tone="idle"
+            title="Tu permiso en este proyecto es de solo lectura."
+          >
+            Solo lectura
+          </span>
+        ) : (
+          <>
+            <div
+              className={s.saveState}
+              data-tone={tonoGuardado}
+              title={mensajeGuardado ?? undefined}
+            >
+              <span className={s.saveDot} data-tone={tonoGuardado} />
+              <span>{TEXTO_TONO[tonoGuardado]}</span>
+            </div>
+
+            {/*
+              Guardado manual. El autosave del paquete (1 s) escribe en el
+              documento vivo y no respalda nada: este botón es el único camino
+              que crea una fila en `version` y consolida `proyecto.esquema_json`.
+              Por eso no es un detalle: sin pulsarlo, el trabajo no está guardado
+              en el sentido de "puedo cerrar y volver".
+            */}
+            <button
+              aria-label="Guardar una versión del plano"
+              className={s.iconBtn}
+              disabled={guardandoVersion}
+              onClick={guardarVersion}
+              title="Guardar una versión del plano (crea un punto de restauración)"
+              type="button"
+            >
+              <Save className="h-3.5 w-3.5" />
+            </button>
+          </>
+        )}
 
         <div className={s.seg}>
           <button

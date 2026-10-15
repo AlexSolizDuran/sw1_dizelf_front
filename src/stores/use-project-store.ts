@@ -1,11 +1,17 @@
 "use client";
 
 import { create } from "zustand";
-import { apiGuardarProyecto, apiObtenerProyecto } from "@/lib/projects";
+import {
+  apiGuardarProyecto,
+  apiGuardarVersion,
+  apiObtenerProyecto,
+  apiListarVersiones,
+} from "@/lib/projects";
 import {
   leerDocumento,
   type DocumentoProyecto,
   type Proyecto,
+  type Version,
 } from "@/types/proyecto";
 
 interface ProjectState {
@@ -15,11 +21,19 @@ interface ProjectState {
   guardando: boolean;
   error: string | null;
 
+  /** Historial de guardados manuales del proyecto abierto. */
+  versiones: Version[];
+
   cargar: (id: string) => Promise<DocumentoProyecto | null>;
   guardar: (
     documento: DocumentoProyecto,
     opciones?: { keepalive?: boolean }
   ) => Promise<void>;
+
+  /** Guardado manual: consolida y crea la fila en `version`. */
+  guardarVersion: (nombre?: string) => Promise<boolean>;
+  cargarVersiones: () => Promise<void>;
+
   limpiar: () => void;
 }
 
@@ -49,6 +63,7 @@ let guardandoAhora = false;
 export const useProjectStore = create<ProjectState>((set, get) => ({
   proyecto: null,
   documento: null,
+  versiones: [],
   cargando: false,
   guardando: false,
   error: null,
@@ -58,7 +73,10 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
     try {
       const proyecto = await apiObtenerProyecto(id);
       const documento = leerDocumento(proyecto.esquemaJson);
-      set({ proyecto, documento, cargando: false });
+      // `origen` viene del backend: dice de qué tabla salió `esquemaJson`. No
+      // lo consulta el front porque no hay dos endpoints, sino una decisión que
+      // el servidor toma mejor que el cliente.
+      set({ proyecto, documento, versiones: [], cargando: false });
       return documento;
     } catch (e) {
       const mensaje =
@@ -132,8 +150,64 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
     pendiente = null;
   },
 
+  /**
+   * Guardado manual: consolida.
+   *
+   * Es el único camino que crea una fila en `version` y actualiza
+   * `proyecto.esquema_json`. El autosave de arriba escribe en el documento
+   * vivo, así que lo editado desde el último guardado manual solo vive ahí.
+   *
+   * Se espera a que termine cualquier write en vuelo: consolidar mientras hay
+   * un PATCH a medias dejaría el proyecto con una versión anterior a la última
+   * edición, que es justo lo que el usuario cree haber guardado.
+   */
+  guardarVersion: async (nombre) => {
+    const proyecto = get().proyecto;
+    if (!proyecto) {
+      set({ error: "No hay un proyecto abierto" });
+      return false;
+    }
+    if (!proyecto.puedeEditar) {
+      set({ error: "Tu permiso en este proyecto es de solo lectura." });
+      return false;
+    }
+
+    set({ guardando: true });
+    try {
+      while (guardandoAhora) {
+        await new Promise((r) => setTimeout(r, 120));
+      }
+      await apiGuardarVersion(proyecto.id, nombre);
+      await get().cargarVersiones();
+      set({ guardando: false, error: null });
+      return true;
+    } catch (e) {
+      set({
+        guardando: false,
+        error: e instanceof Error ? e.message : "No se pudo guardar la versión",
+      });
+      return false;
+    }
+  },
+
+  cargarVersiones: async () => {
+    const proyecto = get().proyecto;
+    if (!proyecto) return;
+    try {
+      set({ versiones: await apiListarVersiones(proyecto.id) });
+    } catch {
+      // El historial es informativo: si no se puede listar, el editor sigue.
+    }
+  },
+
   limpiar: () => {
     pendiente = null;
-    set({ proyecto: null, documento: null, error: null, guardando: false });
+    set({
+      proyecto: null,
+      documento: null,
+      versiones: [],
+      error: null,
+      guardando: false,
+    });
   },
 }));

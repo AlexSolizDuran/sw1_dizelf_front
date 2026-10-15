@@ -151,7 +151,7 @@ export default function ProyectosPage() {
                         {proyecto.totalColaboradores + 1}
                       </span>
                       <span className="rounded bg-[#F2E8E2] px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-[0.1em]">
-                        {proyecto.miRol === "CREADOR" ? "Creador" : "Invitado"}
+                        {proyecto.miRol === "CREADOR" ? "Creador" : proyecto.miRol}
                       </span>
                     </span>
                   </Link>

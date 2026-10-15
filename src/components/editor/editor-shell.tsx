@@ -2,7 +2,9 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Editor, type SceneGraph, useEditor } from "@pascal-app/editor";
-import { useProjectStore } from "@/stores/use-project-store";import { BuildTab } from "./build-tab";
+import { useScene } from "@pascal-app/core";
+import { useProjectStore } from "@/stores/use-project-store";
+import { BuildTab } from "./build-tab";
 import { EditorNavbar, type TonoGuardado } from "./editor-navbar";
 import { EstructuraTab } from "./estructura-tab";
 import { LevelBootstrap } from "./level-bootstrap";
@@ -65,6 +67,8 @@ interface Props {
 
 export function EditorShell({ proyectoId, nombreProyecto }: Props) {
   const guardar = useProjectStore((st) => st.guardar);
+  const guardarVersion = useProjectStore((st) => st.guardarVersion);
+  const proyecto = useProjectStore((st) => st.proyecto);
 
   useDeleteOnClick();
 
@@ -74,6 +78,20 @@ export function EditorShell({ proyectoId, nombreProyecto }: Props) {
   const [tema, setTema] = useState<"claro" | "oscuro">("claro");
   const [tono, setTono] = useState<TonoGuardado>("idle");
   const [aviso, setAviso] = useState<string | null>(null);
+
+  const soloLectura = proyecto?.puedeEditar === false;
+
+  /**
+   * Un LECTOR entra en modo lectura.
+   *
+   * `setReadOnly` vive en el store de escena del paquete, no en un estado de
+   * React: sin él, las herramientas siguen activas y el usuario arma
+   * un plano que el backend le va a rechazar con 403 en cada guardado.
+   */
+  useEffect(() => {
+    useScene.getState().setReadOnly(soloLectura);
+    return () => useScene.getState().setReadOnly(false);
+  }, [soloLectura]);
 
   useEffect(() => {
     const guardado = localStorage.getItem(TEMA_KEY);
@@ -106,6 +124,10 @@ export function EditorShell({ proyectoId, nombreProyecto }: Props) {
 
   const onSave = useCallback(
     async (scene: SceneGraph, opciones?: { keepalive?: boolean }) => {
+      // Un LECTOR no escribe: el backend rechaza el PATCH con 403 y, sin este
+      // corte, el editor intentaría guardar cada segundo para que el navbar
+      // quedara parpadeando en rojo.
+      if (useProjectStore.getState().proyecto?.puedeEditar === false) return;
       await guardar(
         {
           version: 1,
@@ -208,7 +230,18 @@ export function EditorShell({ proyectoId, nombreProyecto }: Props) {
             <EditorNavbar
               mensajeGuardado={aviso}
               nombreProyecto={nombreProyecto}
+              onGuardarVersion={async () => {
+                const ok = await guardarVersion();
+                if (ok) {
+                  setTono("saved");
+                  setAviso("Versión guardada: se puede volver a este punto.");
+                } else {
+                  setTono("error");
+                  setAviso("No se pudo guardar la versión.");
+                }
+              }}
               onToggleTema={toggleTema}
+              soloLectura={soloLectura}
               tema={tema}
               tonoGuardado={tono}
             />
