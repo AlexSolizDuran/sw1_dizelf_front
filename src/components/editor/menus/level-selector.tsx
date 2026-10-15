@@ -63,6 +63,7 @@ export function LevelSelector() {
 
   const [porBorrar, setPorBorrar] = useState<LevelNode | null>(null);
   const [arrastrando, setArrastrando] = useState<string | null>(null);
+  const [aviso, setAviso] = useState<string | null>(null);
 
   /**
    * El selector vive como hermano de `<Editor>`, así que se posiciona contra
@@ -145,17 +146,42 @@ export function LevelSelector() {
     crearEn(minimo - 1);
   };
 
-  const insertarEntre = (indiceInferior: number) => {
-    const inferior = niveles[indiceInferior];
-    if (!inferior) return;
-    crearEn(inferior.level + 1, inferior.level + 1);
-  };
+/**
+ * Inserta un piso entre `indiceInferior` y el de arriba.
+ *
+ * Devuelve `false` cuando no hay piso debajo: es el caso de la última fila de
+ * la lista, donde insertar "entre este y el de abajo" no tiene sentido porque no
+ * hay un de abajo. Antes esa fila pasaba `-1` como índice, `niveles[-1]` era
+ * `undefined` y la función salía en silencio: el "+" no hacía nada y el usuario
+ * no tenía cómo saber si el botón estaba roto.
+ */
+const insertarEntre = (indiceInferior: number): boolean => {
+  const inferior = niveles[indiceInferior];
+  if (!inferior) return false;
+  crearEn(inferior.level + 1, inferior.level + 1);
+  return true;
+};
 
   const confirmarBorrar = () => {
     if (!porBorrar) return;
     borrarPisoConSelectionDeRespaldo(porBorrar.id as AnyNodeId);
     setPorBorrar(null);
   };
+
+  /** Aviso efímero; el timer se cancela al desmontar y al reavisar. */
+  const temporizadorAviso = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const avisar = useCallback((texto: string) => {
+    setAviso(texto);
+    if (temporizadorAviso.current) clearTimeout(temporizadorAviso.current);
+    temporizadorAviso.current = setTimeout(() => setAviso(null), 2600);
+  }, []);
+
+  useEffect(
+    () => () => {
+      if (temporizadorAviso.current) clearTimeout(temporizadorAviso.current);
+    },
+    []
+  );
 
   /**
    * Duplica un piso: copia su subárbol completo un nivel más arriba.
@@ -268,7 +294,16 @@ export function LevelSelector() {
                 nivel={nivel}
                 onDuplicar={() => duplicar(nivel)}
                 onPedirBorrar={() => setPorBorrar(nivel)}
-                onInsertar={() => insertarEntre(niveles.length - 1 - i - 1)}
+                onInsertar={() => {
+                  // El índice de `niveles` correspondiente a la fila visible `i`
+                  // es `length - 1 - i`; para insertar *debajo* hace falta el
+                  // siguiente. Con el `- 1` de más, la última fila pedía -1.
+                  if (!insertarEntre(niveles.length - 1 - i - 1)) {
+                    avisar("No hay un piso debajo de este: usá «Agregar piso abajo».");
+                  } else {
+                    setAviso(null);
+                  }
+                }}
                 seleccionado={nivel.id === nivelSeleccionado}
                 onSeleccionar={() =>
                   setSelection({ buildingId: edificioId, levelId: nivel.id })
@@ -297,6 +332,12 @@ export function LevelSelector() {
           alConfirmar={confirmarBorrar}
           nombre={nombreDePiso(porBorrar)}
         />
+      ) : null}
+
+      {aviso ? (
+        <p className={s.levelConfirm} role="status">
+          {aviso}
+        </p>
       ) : null}
     </div>
   );

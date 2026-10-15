@@ -57,5 +57,14 @@ export async function crearGuiaLocal({
     (n) => n?.type === "guide" && (n as { url?: string }).url === url
   );
 
-  return { id: String(creado?.id ?? "") };
+  /**
+   * Si no aparece, el schema del registro rechazó el nodo y la subida se
+   * perdió. Antes se devolvía `{ id: "" }` y quien lo llamaba seleccionaba `""`
+   * y le mostraba "listo" al usuario: el error se reportaba como éxito.
+   */
+  if (!creado?.id) {
+    throw new Error("No se pudo registrar la imagen en el plano.");
+  }
+
+  return { id: String(creado.id) };
 }

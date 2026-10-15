@@ -84,12 +84,15 @@ const nextConfig: NextConfig = {
   // se renderiza: el árbol del panel de Sitio y el rail usan los tabs que le
   // pasamos en `sidebarTabs`, y el catálogo usa `icons/registry-patch.tsx`.
   //
-  // La extensión sigue siendo `.webp` porque es la que pide el paquete, así que
-  // hay que corregir el Content-Type: el archivo contiene SVG.
+  // El paquete pide `/icons/algo.webp` pero el archivo contiene SVG, y la
+  // extensión es la que el paquete espera. El `Content-Type` se fija sobre el
+  // archivo exacto y no sobre `/icons/:archivo`: aplicarlo a la carpeta entera
+  // hacía que cualquier `.webp` real que se agregara ahí se sirviera como SVG y
+  // el navegador lo parseara con ese parser.
   async headers() {
     return [
       {
-        source: "/icons/:archivo",
+        source: "/icons/paint.webp",
         headers: [{ key: "Content-Type", value: "image/svg+xml; charset=utf-8" }],
       },
       // Cabeceras de seguridad para todo el sitio, landing y editor alike.

@@ -135,9 +135,14 @@ export function ReferencesControl() {
       setMostrarGuias(true);
       setReferenciaSeleccionada(guia.id as AnyNodeId);
       setSelection({ selectedIds: [], zoneId: null });
-    } catch {
-      // IndexedDB puede estar bloqueado en navegación privada.
-      setError("No se pudo guardar la imagen en este navegador.");
+    } catch (e) {
+      // IndexedDB puede estar bloqueado en navegación privada, o el registro
+      // haber rechazado el nodo. Los dos casos son fallos de guardado.
+      setError(
+        e instanceof Error && e.message.startsWith("No se pudo registrar")
+          ? "No se pudo agregar la imagen al plano."
+          : "No se pudo guardar la imagen en este navegador."
+      );
     } finally {
       setSubiendo(false);
     }
