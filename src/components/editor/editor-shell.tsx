@@ -15,6 +15,7 @@ import { LevelSelector } from "./menus/level-selector";
 import { PropertiesPanel } from "./properties-panel";
 import { bootstrapRegistry } from "./icons/registry-patch";
 import { useDeleteOnClick } from "@/hooks/use-delete-on-click";
+import { useSincronizacion } from "@/hooks/use-sincronizacion";
 import { Braces, Hammer, Paintbrush, Sofa } from "./icons/glyphs";
 import s from "./editor.module.css";
 
@@ -71,6 +72,7 @@ export function EditorShell({ proyectoId, nombreProyecto }: Props) {
   const proyecto = useProjectStore((st) => st.proyecto);
 
   useDeleteOnClick();
+  useSincronizacion(proyectoId, proyecto?.puedeEditar !== false);
 
   const [registroListo, setRegistroListo] = useState(false);
   const [escenaCargando, setEscenaCargando] = useState(true);
