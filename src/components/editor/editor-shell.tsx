@@ -242,7 +242,14 @@ export function EditorShell({ proyectoId, nombreProyecto }: Props) {
                   setAviso("No se pudo guardar la versión.");
                 }
               }}
+              onRestaurar={() => {
+                // Recarga completa: el Y.Doc en memoria del gateway y el useScene
+                // del cliente seguirían con la escena anterior y la pisarían al
+                // siguiente guardado. Ver la nota de PanelVersiones.
+                window.location.reload();
+              }}
               onToggleTema={toggleTema}
+              miRol={proyecto?.miRol ?? "CREADOR"}
               proyectoId={proyectoId}
               soloLectura={soloLectura}
               tema={tema}

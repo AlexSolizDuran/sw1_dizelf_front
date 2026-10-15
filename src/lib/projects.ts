@@ -108,13 +108,32 @@ export async function apiListarVersiones(id: string): Promise<Version[]> {
 /**
  * Restaura una versión. Escribe su contenido en el documento vivo y consolida
  * el proyecto, así que el historial no se pierde: queda un guardado nuevo.
+ *
+ * Devuelve el proyecto actualizado porque el servidor lo reescribe: si la
+ * restauración cambiaba la escena, el que está en pantalla dejaría de
+ * corresponderse con lo guardado y habría que recargar.
  */
 export async function apiRestaurarVersion(
   id: string,
   versionId: number
 ): Promise<Proyecto> {
-  return apiClient<Proyecto>(`/proyectos/${id}/versiones/${versionId}/restaurar`, {
-    method: "POST",
-    body: JSON.stringify({}),
-  });
+  return apiClient<Proyecto>(
+    `/proyectos/${id}/versiones/${versionId}/restaurar`,
+    { method: "POST", body: JSON.stringify({}) }
+  );
+}
+
+/**
+ * Quita un colaborador. Solo el creador.
+ *
+ * `usuarioId` va en el path y no en un cuerpo: el backend lo toma de ahí.
+ */
+export async function apiQuitarColaborador(
+  id: string,
+  usuarioId: number
+): Promise<{ message: string }> {
+  return apiClient<{ message: string }>(
+    `/proyectos/${id}/colaboradores/${usuarioId}`,
+    { method: "DELETE" }
+  );
 }

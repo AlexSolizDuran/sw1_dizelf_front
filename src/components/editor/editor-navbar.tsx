@@ -4,6 +4,8 @@ import { useCallback, useState } from "react";
 import Link from "next/link";
 import { ArrowLeft, Box, Compass, Moon, Save, Scan, Sun } from "lucide-react";
 import { IndicadorPresencia } from "./indicador-presencia";
+import { PanelColaboradores } from "./panel-colaboradores";
+import { PanelVersiones } from "./panel-versiones";
 import { useEditor } from "@pascal-app/editor";
 import { useViewer } from "@pascal-app/viewer";
 import s from "./editor.module.css";
@@ -29,6 +31,10 @@ interface Props {
   onGuardarVersion?: () => void;
   /** Abre el canal de presencia de este proyecto. */
   proyectoId: string;
+  /** Rol del usuario en este proyecto: `CREADOR` o el permiso de la base. */
+  miRol: string;
+  /** Recarga el editor tras restaurar una versión. */
+  onRestaurar: () => void;
 }
 
 export function EditorNavbar({
@@ -40,6 +46,8 @@ export function EditorNavbar({
   soloLectura = false,
   onGuardarVersion,
   proyectoId,
+  miRol,
+  onRestaurar,
 }: Props) {
   const viewMode = useEditor((st) => st.viewMode);
   const mode = useEditor((st) => st.mode);
@@ -92,6 +100,10 @@ export function EditorNavbar({
             >
               Solo lectura
             </span>
+            <PanelColaboradores
+              miRol={miRol}
+              proyectoId={proyectoId}
+            />
             <IndicadorPresencia proyectoId={proyectoId} />
           </>
         ) : (
@@ -122,6 +134,12 @@ export function EditorNavbar({
             >
               <Save className="h-3.5 w-3.5" />
             </button>
+
+            <PanelVersiones
+              alRestaurar={onRestaurar}
+              puedeEditar
+              proyectoId={proyectoId}
+            />
 
             <IndicadorPresencia proyectoId={proyectoId} />
           </>
