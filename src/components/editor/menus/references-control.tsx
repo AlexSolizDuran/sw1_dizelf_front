@@ -192,7 +192,7 @@ export function ReferencesControl() {
                   no está disponible.
                 </p>
               ) : (
-                <ul className={s.refList}>
+                <ul aria-label="Escaneos del nivel" className={s.refList} role="region" tabIndex={0}>
                   {escaneos.map((n, i) => (
                     <FilaReferencia
                       activo={referenciaSeleccionada === n.id}
@@ -251,7 +251,7 @@ export function ReferencesControl() {
                   referencia al dibujar.
                 </p>
               ) : (
-                <ul className={s.refList}>
+                <ul aria-label="Imágenes guía del nivel" className={s.refList} role="region" tabIndex={0}>
                   {guias.map((n, i) => (
                     <FilaReferencia
                       activo={referenciaSeleccionada === n.id}

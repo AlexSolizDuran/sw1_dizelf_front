@@ -155,7 +155,7 @@ export function PropertiesPanel() {
   const Icon = iconForKind(node.type) ?? Box;
 
   return (
-    <aside className={s.props}>
+    <aside aria-label="Propiedades del elemento seleccionado" className={s.props}>
       <header className={s.propsHead}>
         <Icon className="h-[26px] w-[26px] shrink-0 opacity-85" />
         <div className="min-w-0 flex-1">
@@ -177,7 +177,7 @@ export function PropertiesPanel() {
         />
       </div>
 
-      <div className={s.propsBody}>
+      <div aria-label="Campos del elemento" className={s.propsBody} role="region" tabIndex={0}>
         <div className={s.propsCols}>
           <span>Parámetro</span>
           <span>Valor</span>
@@ -304,7 +304,10 @@ function Row({
         ? String(Number(shown.toFixed(field.precision ?? 3)))
         : shown
     );
-    requestAnimationFrame(() => inputRef.current?.select());
+    // El frame se cancela al desmontar o al salir del modo edición: si no, el
+    // callback queda pendiente sobre un `inputRef` ya nulo.
+    const frame = requestAnimationFrame(() => inputRef.current?.select());
+    return () => cancelAnimationFrame(frame);
   }, [editing, shown, field.precision]);
 
   if (field.kind === "bool") {

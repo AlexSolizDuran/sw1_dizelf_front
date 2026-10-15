@@ -53,9 +53,9 @@ export function PasswordMeter({ password }: PasswordMeterProps) {
             {rule.met ? (
               <Check className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
             ) : (
-              <X className="w-3.5 h-3.5 text-[#A89D95] shrink-0" />
+              <X className="w-3.5 h-3.5 text-[#6B5E55] shrink-0" />
             )}
-            <span className={rule.met ? "text-emerald-800 font-medium" : "text-[#8A7D75]"}>
+            <span className={rule.met ? "text-emerald-800 font-medium" : "text-[#6B5E55]"}>
               {rule.label}
             </span>
           </div>

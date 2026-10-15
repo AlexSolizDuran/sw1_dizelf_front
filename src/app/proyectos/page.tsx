@@ -12,7 +12,9 @@ import type { ProyectoLista } from "@/types/proyecto";
 
 export default function ProyectosPage() {
   const router = useRouter();
-  const { user, isAuthenticated, isInitialized } = useAuthStore();
+  const user = useAuthStore((s) => s.user);
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
+  const isInitialized = useAuthStore((s) => s.isInitialized);
 
   const [proyectos, setProyectos] = useState<ProyectoLista[]>([]);
   const [cargando, setCargando] = useState(true);
@@ -159,7 +161,7 @@ export default function ProyectosPage() {
                       <button
                         aria-label={`Eliminar ${proyecto.nombre}`}
                         onClick={() => eliminar(proyecto)}
-                        className="p-1.5 text-[#A89D95] hover:bg-[#F5ECE8] hover:text-[#B3261E]"
+                        className="p-1.5 text-[#6B5E55] hover:bg-[#F5ECE8] hover:text-[#B3261E]"
                         title="Eliminar"
                         type="button"
                       >
@@ -169,7 +171,7 @@ export default function ProyectosPage() {
                     <Link
                       aria-label={`Abrir ${proyecto.nombre}`}
                       href={`/editor/${proyecto.id}`}
-                      className="p-1.5 text-[#A89D95] hover:bg-[#F2E8E2] hover:text-[#8C432A]"
+                      className="p-1.5 text-[#6B5E55] hover:bg-[#F2E8E2] hover:text-[#8C432A]"
                       title="Abrir en el editor"
                     >
                       <ArrowRight className="h-4 w-4" />

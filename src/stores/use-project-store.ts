@@ -24,6 +24,18 @@ interface ProjectState {
 }
 
 /**
+ * Guardado en vuelo. Vive fuera del estado de zustand a propósito: es un
+ * detalle de la máquina de guardado, no algo que la UI tenga que observar ni
+ * que dispare renders.
+ */
+let pendiente: {
+  documento: DocumentoProyecto;
+  keepalive: boolean;
+} | null = null;
+
+let guardandoAhora = false;
+
+/**
  * Estado del proyecto abierto en el editor.
  *
  * El store NO guarda la escena enmutable: esa la posee el store interno de
@@ -56,38 +68,72 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
     }
   },
 
+  /**
+   * Encola en vez de descartar.
+   *
+   * Antes: si había un PATCH en vuelo, el siguiente se tiraba y el documento
+   * se perdía sin error visible — el autosave del paquete dispara cada segundo,
+   * así que bastaba con que el anterior tardara más de eso para que la última
+   * edición no llegara nunca al backend.
+   *
+   * Ahora solo se conserva **el último** documento encolado: los intermedios
+   * están obsoletos para cuando vuelve el PATCH, y mandarlos todos sería
+   * writes inútiles contra una columna que se sobreescribe entera.
+   */
   guardar: async (documento, opciones) => {
-    // Un guardado que llega mientras el anterior sigue en vuelo se solapa con
-    // otro. El editor ya serializa con su propio debounce de 1s, así que sólo
-    // hace falta no apilar escrituras si el usuario edita justo al salir.
-    if (get().guardando && !opciones?.keepalive) return;
+    if (guardandoAhora) {
+      pendiente = { documento, keepalive: opciones?.keepalive ?? false };
+      return;
+    }
+
+    guardandoAhora = true;
     set({ guardando: true });
+
     try {
-      const { proyecto } = get();
-      if (!proyecto) throw new Error("No hay un proyecto abierto");
+      while (true) {
+        const { proyecto } = get();
+        if (!proyecto) throw new Error("No hay un proyecto abierto");
 
-      const actualizado = await apiGuardarProyecto(
-        proyecto.id,
-        { esquemaJson: documento as unknown as Record<string, unknown> },
-        opciones
-      );
+        const enviado = pendiente?.documento ?? documento;
+        const keepalive = pendiente?.keepalive ?? opciones?.keepalive;
+        pendiente = null;
 
-      set({
-        guardando: false,
-        proyecto: {
-          ...actualizado,
-          // Se conserva la referencia previa: ver nota del store.
-          esquemaJson: proyecto.esquemaJson,
-        },
-      });
+        const actualizado = await apiGuardarProyecto(
+          proyecto.id,
+          { esquemaJson: enviado as unknown as Record<string, unknown> },
+          { keepalive }
+        );
+
+        set({
+          proyecto: {
+            ...actualizado,
+            // Se conserva la referencia previa: ver nota del store.
+            esquemaJson: proyecto.esquemaJson,
+          },
+        });
+
+        // Salir de inmediato si no se encoló nada durante este write.
+        if (!pendiente) break;
+      }
+
+      set({ guardando: false, error: null });
     } catch (e) {
       set({
         guardando: false,
         error: e instanceof Error ? e.message : "No se pudo guardar",
       });
+    } finally {
+      guardandoAhora = false;
     }
+
+    // Un keepalive encolado mientras corría el write normal ya no se manda con
+    // la página cerrándose, así que se descarta explícitamente: reenviarlo
+    // igual sería una petición que el navegador cancela igual.
+    pendiente = null;
   },
 
-  limpiar: () =>
-    set({ proyecto: null, documento: null, error: null, guardando: false }),
+  limpiar: () => {
+    pendiente = null;
+    set({ proyecto: null, documento: null, error: null, guardando: false });
+  },
 }));

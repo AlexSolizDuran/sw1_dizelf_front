@@ -11,7 +11,8 @@ import { useAuthStore } from "@/stores/use-auth-store";
 
 export function RegisterCard() {
   const router = useRouter();
-  const { register, isLoading } = useAuthStore();
+  const register = useAuthStore((s) => s.register);
+  const isLoading = useAuthStore((s) => s.isLoading);
 
   const [formData, setFormData] = useState({
     nombre: "",

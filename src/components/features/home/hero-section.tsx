@@ -6,7 +6,7 @@ import { SoftwarePreview } from "./software-preview";
 import { useAuthStore } from "@/stores/use-auth-store";
 
 export function HeroSection() {
-  const { isAuthenticated } = useAuthStore();
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
 
   return (
     <section className="w-full py-12 md:py-20 lg:py-28">

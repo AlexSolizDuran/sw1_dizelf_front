@@ -15,12 +15,22 @@ import { EditorShell } from "@/components/editor/editor-shell";
  */
 export function EditorLoader({ proyectoId }: { proyectoId: string }) {
   const router = useRouter();
-  const { isAuthenticated, isInitialized } = useAuthStore();
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
+  const isInitialized = useAuthStore((s) => s.isInitialized);
   const cargar = useProjectStore((st) => st.cargar);
   const proyecto = useProjectStore((st) => st.proyecto);
-  const error = useProjectStore((st) => st.error);
 
   const [cargando, setCargando] = useState(true);
+  /**
+   * Error de apertura, en estado local y no leído del store.
+   *
+   * `useProjectStore.error` es compartido con `guardar`, y el autosave escribe
+   * ahí cada vez que un PATCH falla. Suscribirse a ese error hacía que un fallo
+   * de red al guardar —algo recuperable, y del que el navbar ya informa—
+   * expulsara al usuario del editor y lo mandara a la lista de proyectos con
+   * el plano sin guardar.
+   */
+  const [errorApertura, setErrorApertura] = useState<string | null>(null);
 
   useEffect(() => {
     if (isInitialized && !isAuthenticated) {
@@ -32,7 +42,10 @@ export function EditorLoader({ proyectoId }: { proyectoId: string }) {
     if (!isAuthenticated) return;
     let vivo = true;
     void cargar(proyectoId).finally(() => {
-      if (vivo) setCargando(false);
+      if (!vivo) return;
+      // `cargar` deja el motivo en el store justo antes de resolver.
+      setErrorApertura(useProjectStore.getState().error);
+      setCargando(false);
     });
     return () => {
       vivo = false;
@@ -47,11 +60,11 @@ export function EditorLoader({ proyectoId }: { proyectoId: string }) {
     return <PantallaCarga texto="Abriendo proyecto…" />;
   }
 
-  if (error) {
+  if (errorApertura) {
     return (
       <div className="flex min-h-screen flex-col items-center justify-center gap-3 bg-[#FAF7F2] px-6 text-center">
         <p className="text-sm font-semibold text-[#8C432A]">No se pudo abrir el proyecto</p>
-        <p className="max-w-sm text-xs leading-relaxed text-[#7A6D63]">{error}</p>
+        <p className="max-w-sm text-xs leading-relaxed text-[#7A6D63]">{errorApertura}</p>
         <button
           className="mt-2 border border-[#DDD5CB] px-4 py-2 text-xs font-medium text-[#5A4E46] hover:bg-[#F9F7F5]"
           onClick={() => router.push("/proyectos")}

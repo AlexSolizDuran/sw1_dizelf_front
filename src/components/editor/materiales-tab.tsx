@@ -114,10 +114,17 @@ export function MaterialesTab() {
   const setPaintEraser = useEditor((st) => st.setPaintEraser);
 
   const selectedIds = useViewer((st) => st.selection.selectedIds);
-  const nodes = useScene((st) => st.nodes);
   const updateNodes = useScene((st) => st.updateNodes);
   const selectedId = selectedIds.length === 1 ? (selectedIds[0] as AnyNodeId) : null;
-  const selectedNode = selectedId ? nodes[selectedId] : null;
+  /**
+   * Solo el nodo seleccionado, no `st.nodes`.
+   *
+   * Cualquier escritura en la escena reemplaza el mapa completo de nodos, así
+   * que suscribirse a `nodes` re-renderizaba las 45 losetas de pintura ante
+   * cualquier edición del plano. Este selector devuelve la referencia del nodo,
+   * que solo cambia cuando ese nodo cambia.
+   */
+  const selectedNode = useScene((st) => (selectedId ? (st.nodes[selectedId] ?? null) : null));
 
   /**
    * Categorías con sus materiales, todas desplegadas. Antes había una barra
@@ -175,7 +182,9 @@ export function MaterialesTab() {
   /** Resetea todas las superficies del nodo seleccionado a su material por defecto. */
   const resetSelection = () => {
     if (!selectedNode) return;
-    const updates = buildResetSurfaceMaterialUpdates(nodes, selectedNode);
+    // Lectura puntual: el mapa entero solo hace falta acá, y engancharlo al
+    // render Costaba un re-render por cada edición de la escena.
+    const updates = buildResetSurfaceMaterialUpdates(useScene.getState().nodes, selectedNode);
     if (updates.length > 0) updateNodes(updates);
   };
 
@@ -215,13 +224,19 @@ export function MaterialesTab() {
         />
       </div>
 
-      <div className={s.panelScroll}>
+      <div
+        aria-label="Biblioteca de materiales"
+        className={s.panelScroll}
+        role="region"
+        tabIndex={0}
+      >
         {sections.length === 0 ? (
           <p className={s.catEmpty}>Sin resultados para “{query}”.</p>
         ) : (
           sections.map(({ category: c, materials }) => (
             <section className={s.panelSection} key={c}>
               <button
+                aria-controls={`mat-${c}`}
                 aria-expanded={isOpen(c)}
                 className={s.panelSectionHead}
                 data-open={isOpen(c)}
@@ -234,7 +249,7 @@ export function MaterialesTab() {
               </button>
 
               {isOpen(c) && (
-                <div className={s.matGrid}>
+                <div className={s.matGrid} id={`mat-${c}`}>
                   {materials.map((m) => {
                     const active =
                       activePaintMaterial?.materialPreset === toLibraryMaterialRef(m.id);

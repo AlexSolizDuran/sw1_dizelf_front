@@ -42,10 +42,20 @@ export function MueblesTab() {
   const selectedItem = useEditor((st) => st.selectedItem);
   const setSelection = useViewer((st) => st.setSelection);
 
-  // Los ítems viven en la fase de amenable: varias capas asumen esa fase para
-  // que la colocación enganche.
+  /**
+   * Los ítems viven en la fase de amenable: varias capas asumen esa fase para
+   * que la colocación enganche.
+   *
+   * La fase previa se lee del store dentro del efecto y no se suscribe a ella:
+   * si `phase` fuera una dependencia, cada cambio dispararía el cleanup —que la
+   * restaura— y el efecto volvería a setear "furnish", en bucle. Al salir del
+   * panel se devuelve el editor a donde estaba, que antes se quedaba en
+   * "furnish" sin ninguna pestaña a la vista que lo justificara.
+   */
   useEffect(() => {
+    const fasePrevia = useEditor.getState().phase;
     setPhase("furnish");
+    return () => setPhase(fasePrevia);
   }, [setPhase]);
 
   /** Secciones a renderizar: cada grupo con los objetos que le pertenecen. */
@@ -99,7 +109,12 @@ export function MueblesTab() {
         />
       </div>
 
-      <div className={s.panelScroll}>
+      <div
+        aria-label="Catálogo de mobiliario"
+        className={s.panelScroll}
+        role="region"
+        tabIndex={0}
+      >
         {sections.length === 0 ? (
           <p className={s.catEmpty}>Sin resultados para “{query}”.</p>
         ) : (
@@ -108,6 +123,7 @@ export function MueblesTab() {
             return (
               <section className={s.panelSection} key={group.slug}>
                 <button
+                  aria-controls={`cat-${group.slug}`}
                   aria-expanded={isOpen(group.slug)}
                   className={s.panelSectionHead}
                   data-open={isOpen(group.slug)}
@@ -121,7 +137,7 @@ export function MueblesTab() {
                 </button>
 
                 {isOpen(group.slug) && (
-                  <div className={s.catGrid}>
+                  <div className={s.catGrid} id={`cat-${group.slug}`}>
                     {items.map((item) => {
                       // La key es el `id`, no el `src`: `cabinet` y
                       // `kitchen-cabinet` comparten el mismo model.glb, y con

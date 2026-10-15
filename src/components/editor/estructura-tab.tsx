@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
 import { useScene, type AnyNode, type AnyNodeId } from "@pascal-app/core";
 import { Check, Copy } from "lucide-react";
 import { buildAiJson, buildEditorJson, type SceneStateLike } from "@/lib/editor/scene-json";
@@ -29,25 +29,57 @@ export function EstructuraTab() {
   const materials = useScene((st) => st.materials);
   const installedPlugins = useScene((st) => st.installedPlugins);
 
+  /**
+   * El JSON se calcula sobre el estado diferido, no sobre el actual.
+   *
+   * `buildEditorJson` serializa el mapa entero de nodos y `buildAiJson` lo
+   * recorre entero: son O(escena) por cada edición del plano, y el resultado
+   * bloquea el hilo mientras se arma la cadena. Como la vista tiene que
+   * *reflejar* el documento, no se puede cachear; lo que sí se puede es
+   * sacarlo del camino crítico. `useDeferredValue` deja que React lo renderice
+   * en una pasada de prioridad baja: editar sigue sintiéndose inmediato y el
+   * texto termina mostrando el mismo documento, un frame más tarde.
+   */
+  const nodesDiferidos = useDeferredValue(nodes);
+
   const text = useMemo(() => {
-    if (Object.keys(nodes).length === 0) return "(escena vacía)";
+    if (Object.keys(nodesDiferidos).length === 0) return "(escena vacía)";
     const state: SceneStateLike = {
-      nodes,
+      nodes: nodesDiferidos,
       rootNodeIds,
       collections: collections as Record<string, unknown>,
       materials: materials as Record<string, unknown>,
       installedPlugins,
     };
     return view === "editor" ? buildEditorJson(state) : buildAiJson(state);
-  }, [nodes, rootNodeIds, collections, materials, installedPlugins, view]);
+  }, [nodesDiferidos, rootNodeIds, collections, materials, installedPlugins, view]);
 
-  const kb = useMemo(() => (new Blob([text]).size / 1024).toFixed(1), [text]);
+  /**
+   * Tamaño en KB por el largo de los bytes, no por `new Blob`.
+   *
+   * `new Blob([text])` materializaba una segunda copia completa de la cadena
+   * solo para leer `.size`. `TextEncoder` cuenta los bytes igual, sin duplicar.
+   */
+  const kb = useMemo(
+    () => (new TextEncoder().encode(text).length / 1024).toFixed(1),
+    [text]
+  );
+
+  const temporizador = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(
+    () => () => {
+      if (temporizador.current) clearTimeout(temporizador.current);
+    },
+    []
+  );
 
   const copy = async () => {
     try {
       await navigator.clipboard.writeText(text);
       setCopied(true);
-      setTimeout(() => setCopied(false), 1600);
+      if (temporizador.current) clearTimeout(temporizador.current);
+      temporizador.current = setTimeout(() => setCopied(false), 1600);
     } catch {
       // El portapapeles puede estar bloqueado por permisos: no es crítico.
     }
@@ -85,7 +117,14 @@ export function EstructuraTab() {
         </button>
       </div>
 
-      <pre className={s.structPre}>{text}</pre>
+      <pre
+        aria-label="Documento de la escena en JSON"
+        className={s.structPre}
+        role="region"
+        tabIndex={0}
+      >
+        {text}
+      </pre>
 
       <p className={s.hint}>
         {view === "editor"

@@ -8,7 +8,14 @@ import { useAuthStore } from "@/stores/use-auth-store";
 
 export function Navbar() {
   const router = useRouter();
-  const { user, isAuthenticated, isInitialized, checkSession, logout } = useAuthStore();
+  // Selectores atómicos: `useAuthStore()` a secas re-renderiza el Navbar
+  // entero en cada cambio de cualquier slice — incluido `isLoading`, que se
+  // mueve en cada login/logout.
+  const user = useAuthStore((s) => s.user);
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
+  const isInitialized = useAuthStore((s) => s.isInitialized);
+  const checkSession = useAuthStore((s) => s.checkSession);
+  const logout = useAuthStore((s) => s.logout);
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
@@ -123,7 +130,7 @@ export function Navbar() {
               {dropdownOpen && (
                 <div className="absolute right-0 mt-2 w-64 bg-white rounded-xl shadow-lg border border-[#EAE3DA] py-2 z-50 animate-in fade-in-50 zoom-in-95">
                   <div className="px-4 py-3 border-b border-[#F0EAE1]">
-                    <p className="text-xs text-[#8A7C73]">Conectado como</p>
+                    <p className="text-xs text-[#6B5E55]">Conectado como</p>
                     <p className="text-sm font-semibold text-[#2B2A28] truncate">
                       {user.persona?.nombre
                         ? `${user.persona.nombre} ${user.persona.apellido}`

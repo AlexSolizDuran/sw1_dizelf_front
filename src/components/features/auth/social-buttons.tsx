@@ -1,13 +1,22 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 
 export function SocialButtons() {
   const [feedback, setFeedback] = useState<string | null>(null);
+  const temporizador = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(
+    () => () => {
+      if (temporizador.current) clearTimeout(temporizador.current);
+    },
+    []
+  );
 
   const handleSocialClick = (provider: string) => {
     setFeedback(`Acceso con ${provider} estará disponible próximamente.`);
-    setTimeout(() => setFeedback(null), 3000);
+    if (temporizador.current) clearTimeout(temporizador.current);
+    temporizador.current = setTimeout(() => setFeedback(null), 3000);
   };
 
   return (

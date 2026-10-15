@@ -2,6 +2,22 @@ import { ApiError } from "@/types/auth";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
 
+/**
+ * Tope por petición.
+ *
+ * Holgado a propósito: un `PATCH /proyectos/:id` manda la escena completa y
+ * con un plano grande puede tardar varios segundos. Sin este techo, un backend
+ * colgado dejaba el spinner de carga y de guardado girando para siempre, sin
+ * distinguishable de "está trabajando".
+ */
+const TIMEOUT_MS = 15_000;
+
+const MENSAJE_TIMEOUT =
+  "La solicitud tardó demasiado. Revisá tu conexión e intentá de nuevo.";
+
+const MENSAJE_SIN_RED =
+  "No se pudo conectar con el servidor. Revisá tu conexión a internet.";
+
 interface RequestOptions extends RequestInit {
   params?: Record<string, string>;
 }
@@ -10,7 +26,7 @@ export async function apiClient<T>(
   endpoint: string,
   options: RequestOptions = {}
 ): Promise<T> {
-  const { params, headers, ...rest } = options;
+  const { params, headers, signal, ...rest } = options;
 
   let url = endpoint.startsWith("http") ? endpoint : `${API_BASE_URL}${endpoint}`;
 
@@ -19,14 +35,47 @@ export async function apiClient<T>(
     url += (url.includes("?") ? "&" : "?") + searchParams.toString();
   }
 
-  const response = await fetch(url, {
-    credentials: "include", // Vital: transporta la cookie HttpOnly access_token
-    headers: {
-      "Content-Type": "application/json",
-      ...headers,
-    },
-    ...rest,
-  });
+  // Se compone el signal propio con el del llamador: el timeout se cancela
+  // solo si quien llama no lo cancela antes, y viceversa.
+  const control = new AbortController();
+  const temporizador = setTimeout(() => control.abort(new Error("timeout")), TIMEOUT_MS);
+  const alAbortar = () => control.abort(signal?.reason);
+  if (signal) {
+    if (signal.aborted) {
+      clearTimeout(temporizador);
+      throw signal.reason instanceof Error
+        ? signal.reason
+        : new Error("La solicitud fue cancelada.");
+    }
+    signal.addEventListener("abort", alAbortar, { once: true });
+  }
+
+  let response: Response;
+  try {
+    response = await fetch(url, {
+      credentials: "include", // Vital: transporta la cookie HttpOnly access_token
+      headers: {
+        "Content-Type": "application/json",
+        ...headers,
+      },
+      signal: control.signal,
+      ...rest,
+    });
+  } catch (e) {
+    // Se limpia antes de traducir: el error se propaga, no se propaga el timer.
+    clearTimeout(temporizador);
+    if (signal) signal.removeEventListener("abort", alAbortar);
+
+    if (control.signal.aborted && !signal?.aborted) {
+      throw new Error(MENSAJE_TIMEOUT);
+    }
+    if (signal?.aborted) {
+      throw new Error("La solicitud fue cancelada.");
+    }
+    throw new Error(MENSAJE_SIN_RED, { cause: e });
+  }
+  clearTimeout(temporizador);
+  if (signal) signal.removeEventListener("abort", alAbortar);
 
   if (!response.ok) {
     let errorData: ApiError = {

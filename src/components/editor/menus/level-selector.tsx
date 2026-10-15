@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   DndContext,
   KeyboardSensor,
@@ -292,30 +292,98 @@ export function LevelSelector() {
       </div>
 
       {porBorrar ? (
-        <div className={s.levelConfirm}>
-          <p className={s.hint}>
-            ¿Borrar <strong>{nombreDePiso(porBorrar)}</strong> y todo lo que
-            contiene? No se puede deshacer.
-          </p>
-          <div className="flex gap-2">
-            <button
-              className={`${s.propsAct} ${s.propsActDanger}`}
-              onClick={confirmarBorrar}
-              type="button"
-            >
-              <Trash2 className="h-3.5 w-3.5" />
-              Borrar
-            </button>
-            <button
-              className={s.propsAct}
-              onClick={() => setPorBorrar(null)}
-              type="button"
-            >
-              Cancelar
-            </button>
-          </div>
-        </div>
+        <ConfirmacionBorrar
+          alCancelar={() => setPorBorrar(null)}
+          alConfirmar={confirmarBorrar}
+          nombre={nombreDePiso(porBorrar)}
+        />
       ) : null}
+    </div>
+  );
+}
+
+/**
+ * Confirmación de borrado de un piso.
+ *
+ * Antes era un `<div>` suelto: sin `role`, sin foco, sin cierre con Escape y sin
+ * que un lector de pantalla anunciara nada. Es una acción destructiva e
+ * irreversible sobre todo el subárbol del piso, así que va como
+ * `alertdialog`: el foco entra, Tab queda dentro y Escape cancela.
+ */
+function ConfirmacionBorrar({
+  nombre,
+  alConfirmar,
+  alCancelar,
+}: {
+  nombre: string;
+  alConfirmar: () => void;
+  alCancelar: () => void;
+}) {
+  const caja = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    caja.current?.focus();
+  }, []);
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        e.stopPropagation();
+        alCancelar();
+        return;
+      }
+      if (e.key !== "Tab") return;
+
+      // Foco atrapado: sin esto, Tab se va al lienzo del editor por detrás.
+      const focos = caja.current?.querySelectorAll<HTMLElement>("button");
+      if (!focos || focos.length === 0) return;
+      const primero = focos[0];
+      const ultimo = focos[focos.length - 1];
+
+      if (e.shiftKey && document.activeElement === primero) {
+        e.preventDefault();
+        ultimo.focus();
+      } else if (!e.shiftKey && document.activeElement === ultimo) {
+        e.preventDefault();
+        primero.focus();
+      }
+    };
+
+    window.addEventListener("keydown", onKey, true);
+    return () => window.removeEventListener("keydown", onKey, true);
+  }, [alCancelar]);
+
+  return (
+    <div
+      aria-labelledby="confirmar-borrar-piso"
+      aria-modal="true"
+      className={s.levelConfirm}
+      onKeyDown={(e) => e.stopPropagation()}
+      ref={caja}
+      role="alertdialog"
+      tabIndex={-1}
+    >
+      <p className={s.hint} id="confirmar-borrar-piso">
+        ¿Borrar <strong>{nombre}</strong> y todo lo que contiene? No se puede
+        deshacer.
+      </p>
+      <div className="flex gap-2">
+        <button
+          className={`${s.propsAct} ${s.propsActDanger}`}
+          onClick={alConfirmar}
+          type="button"
+        >
+          <Trash2 className="h-3.5 w-3.5" />
+          Borrar
+        </button>
+        <button
+          className={s.propsAct}
+          onClick={alCancelar}
+          type="button"
+        >
+          Cancelar
+        </button>
+      </div>
     </div>
   );
 }
@@ -394,7 +462,16 @@ function FilaNivel({
               setBorrador(nombreDePiso(nivel));
               setEditando(true);
             }}
-            title="Clic para seleccionar · doble clic para renombrar"
+            // El doble clic es un gesto de puntero: sin este atajo, quien navega
+            // con teclado no tenía forma de renombrar un piso.
+            onKeyDown={(e) => {
+              if (e.key === "F2" || (e.key === "Enter" && !seleccionado)) {
+                e.preventDefault();
+                setBorrador(nombreDePiso(nivel));
+                setEditando(true);
+              }
+            }}
+            title="Clic para seleccionar · doble clic o F2 para renombrar"
             type="button"
           >
             {nombreDePiso(nivel)}
