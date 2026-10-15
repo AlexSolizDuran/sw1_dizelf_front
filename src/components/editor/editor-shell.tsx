@@ -241,6 +241,7 @@ export function EditorShell({ proyectoId, nombreProyecto }: Props) {
                 }
               }}
               onToggleTema={toggleTema}
+              proyectoId={proyectoId}
               soloLectura={soloLectura}
               tema={tema}
               tonoGuardado={tono}

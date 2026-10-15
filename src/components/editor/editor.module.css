@@ -1577,3 +1577,74 @@
     scroll-behavior: auto !important;
   }
 }
+
+/* ── Presencia ─────────────────────────────────────────────────────────────
+   Indicador de quién más está en el plano. Vive en el navbar, al lado del
+   estado de guardado, porque comparte la misma pregunta: "¿lo de ahora está
+   adentro?". */
+
+.presencia {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  font-size: 0.6875rem;
+  color: var(--muted-foreground);
+  white-space: nowrap;
+}
+
+.presenciaPunto {
+  width: 0.4375rem;
+  height: 0.4375rem;
+  border-radius: 9999px;
+  flex-shrink: 0;
+}
+
+/* Conectando, o esperando: ámbar tenue. */
+.presenciaPunto[data-estado="idle"] {
+  background: var(--border);
+}
+
+/* Nadie más: neutro, para que no parezca un error. */
+.presenciaPunto[data-estado="solo"] {
+  background: var(--muted-foreground);
+  opacity: 0.5;
+}
+
+/* Hay más gente: verde. Es el único estado que "se enciende". */
+.presenciaPunto[data-estado="varios"] {
+  background: #2E7D52;
+}
+
+/* El canal no abrió: rojo. */
+.presenciaPunto[data-estado="error"] {
+  background: var(--destructive);
+}
+
+.presenciaAvatar {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.125rem;
+  height: 1.125rem;
+  padding: 0 0.25rem;
+  border-radius: 9999px;
+  border: 1px solid var(--border);
+  background: var(--accent);
+  color: var(--accent-foreground);
+  font-size: 0.5625rem;
+  font-weight: 600;
+  line-height: 1;
+}
+
+/* Punto de LECTOR: no está escribiendo, solo mirando. */
+.presenciaLector {
+  position: absolute;
+  right: -0.0625rem;
+  bottom: -0.0625rem;
+  width: 0.375rem;
+  height: 0.375rem;
+  border-radius: 9999px;
+  border: 1px solid var(--background);
+  background: var(--muted-foreground);
+}

@@ -3,6 +3,7 @@
 import { useCallback, useState } from "react";
 import Link from "next/link";
 import { ArrowLeft, Box, Compass, Moon, Save, Scan, Sun } from "lucide-react";
+import { IndicadorPresencia } from "./indicador-presencia";
 import { useEditor } from "@pascal-app/editor";
 import { useViewer } from "@pascal-app/viewer";
 import s from "./editor.module.css";
@@ -26,6 +27,8 @@ interface Props {
   /** Con `true` el proyecto abierto es de solo lectura (permiso LECTOR). */
   soloLectura?: boolean;
   onGuardarVersion?: () => void;
+  /** Abre el canal de presencia de este proyecto. */
+  proyectoId: string;
 }
 
 export function EditorNavbar({
@@ -36,6 +39,7 @@ export function EditorNavbar({
   mensajeGuardado,
   soloLectura = false,
   onGuardarVersion,
+  proyectoId,
 }: Props) {
   const viewMode = useEditor((st) => st.viewMode);
   const mode = useEditor((st) => st.mode);
@@ -80,13 +84,16 @@ export function EditorNavbar({
 
       <div className="ml-auto flex items-center gap-2">
         {soloLectura ? (
-          <span
-            className={s.saveState}
-            data-tone="idle"
-            title="Tu permiso en este proyecto es de solo lectura."
-          >
-            Solo lectura
-          </span>
+          <>
+            <span
+              className={s.saveState}
+              data-tone="idle"
+              title="Tu permiso en este proyecto es de solo lectura."
+            >
+              Solo lectura
+            </span>
+            <IndicadorPresencia proyectoId={proyectoId} />
+          </>
         ) : (
           <>
             <div
@@ -115,6 +122,8 @@ export function EditorNavbar({
             >
               <Save className="h-3.5 w-3.5" />
             </button>
+
+            <IndicadorPresencia proyectoId={proyectoId} />
           </>
         )}
 
