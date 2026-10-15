@@ -1,36 +1,103 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# DIZELF — frontend
 
-## Getting Started
+Frontend de DIZELF: landing, autenticación, lista de proyectos y el editor de
+planos arquitectónicos 2D/3D.
 
-First, run the development server:
+El backend (NestJS + Prisma + Neon) vive en `../dizelf_back` y es independiente.
+
+## Stack
+
+| Paquete | Versión |
+|---|---|
+| next | 16.3.4 |
+| react / react-dom | 19.2.8 |
+| typescript | 5.9 |
+| tailwindcss | 4.3 |
+| zustand | 5.0 |
+| lucide-react | 1.51 |
+| @pascal-app/core, editor, viewer | 0.9.2 |
+| @pascal-app/nodes | 0.1.1 |
+| three / @react-three/fiber / drei | 0.185 / 9 / 10 |
+
+## Rutas
+
+| Ruta | Qué es |
+|---|---|
+| `/` | Landing |
+| `/login`, `/register` | Autenticación |
+| `/proyectos` | Lista de proyectos, crear, abrir y eliminar |
+| `/editor/[proyectoId]` | El editor 2D/3D |
+
+## Arrancar
+
+Dos terminals. El backend va en `:3001`, el front en `:3000`.
 
 ```bash
+# terminal 1 — backend
+cd ../dizelf_back
+cp .env.example .env      # y completar NEON_DB_URL, JWT_SECRET
+npm install
+npm run start:dev
+
+# terminal 2 — frontend
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Abrir <http://localhost:3000>.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+El frontend no necesita `.env`: `NEXT_PUBLIC_API_URL` cae a
+`http://localhost:3001` si no está definida. Para apuntar a otro backend:
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```bash
+echo "NEXT_PUBLIC_API_URL=https://api.tuservidor.com" > .env.local
+```
 
-## Learn More
+## Variables de entorno
 
-To learn more about Next.js, take a look at the following resources:
+| Variable | Para qué | Por defecto |
+|---|---|---|
+| `NEXT_PUBLIC_API_URL` | Base URL del backend | `http://localhost:3001` |
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+No hay secretos en el frontend. El JWT viaja en una cookie `HttpOnly` que fija
+el backend; nunca se guarda en `localStorage` ni se manda por header.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Autenticación
 
-## Deploy on Vercel
+1. `/register` o `/login` → el backend responde `201`/`200` y setea la cookie.
+2. `Navbar` llama a `GET /auth/perfil` al montar para recuperar la sesión.
+3. `checkSession()` deja `isInitialized: true` pase lo que pase.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+**El guard de rutas es de cliente.** No hay `middleware.ts` ni lectura de cookie
+en servidor, así que `/proyectos` y `/editor/[id]` renderizan y después redirigen
+si no hay sesión. Se ve un instante. Queda como deuda.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Persistencia de la escena
+
+El documento del plano vive en `proyecto.esquema_json` (JSONB) del backend:
+
+```json
+{ "version": 1, "vista": "2d", "scene": { "nodes": {}, "rootNodeIds": [] } }
+```
+
+Se carga con `GET /proyectos/:id` y se guarda con `PATCH /proyectos/:id`.
+El autosave lo trae el paquete editor con debounce de 1 s.
+
+## Cosas que conviene saber antes de tocar algo
+
+- **El editor pesa ~1,6 MB gzip** y está aislado en su ruta. Las páginas
+  estáticas no cargan ni un chunk de three.js. Si tocás algo que el editor
+  importa, verificá que eso siga siendo así.
+- **Los assets (modelos `.glb`, texturas, thumbnails) vienen de un bucket de
+  Supabase de un tercero**, no nuestro. Ver `src/components/editor/README.md`.
+- **No hay control de concurrencia ni historial** en el backend. Dos personas
+  editando el mismo proyecto se pisan.
+- `npm audit` reporta 3 vulnerabilidades en `next@16.3.4` (RCE en `next/og`,
+  SSRF en Image Optimization, entre otras). Hay upgrade pendiente a 16.4.0.
+
+## Convenciones
+
+Están en [`AGENTS.md`](./AGENTS.md) y en la skill
+[`.opencode/skills/nextjs-frontend-standards/`](./.opencode/skills/nextjs-frontend-standards/SKILL.md).
+La skill es la referencia completa: stack validado, reglas de integración de
+`@pascal-app`, tokens y los 7 factores de calidad.

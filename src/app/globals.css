@@ -1,26 +1,159 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
+/* Tailwind v4 no escanea node_modules. Sin esto, el editor 2D/3D se monta pero
+   todas sus clases internas (bg-sidebar, text-muted-foreground, …) no existen
+   en el CSS generado. Estas directivas son de build: no emiten CSS. */
+@source "../../node_modules/@pascal-app/editor/src";
+@source "../../node_modules/@pascal-app/nodes/dist";
+@source "../../node_modules/@pascal-app/viewer/dist";
+
+/* El editor monta su propia raíz con la clase `dark` fija
+   (editor-layout-v2.tsx:251). Con el valor por defecto de Tailwind v4
+   (`prefers-color-scheme`) esos `dark:` quedarían atados al sistema operativo
+   y el editor se vería distinto según la máquina. Fijándolos a la clase, el
+   resultado es idéntico para todo el mundo. */
+@custom-variant dark (&:is(.dark *));
 
 @theme inline {
+  /* Los valores viven en :root y en el CSS Module del editor. `inline` hace
+     que las utilidades resuelvan la variable en el elemento en vez de pasar
+     por --color-*: eso permite re-tematizar un subárbol entero declarando la
+     variable en cualquier ancestro, sin tocar :root. */
   --color-background: var(--background);
   --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+
+  /* Sin --radius-* a propósito: el sitio usa rounded-md/lg/xl/2xl en toda la
+     landing, y declararlos acá pisaría la escala por defecto de Tailwind y
+     cambiaría el aspecto de las páginas que ya funcionan. El editor define su
+     propio --radius en su CSS Module. */
 }
 
+/* Paleta DIZELF, derivada de los hex que ya usan los componentes. Todos estos
+   valores son nuevos en su forma (antes sólo existían como utilities
+   arbitrarias tipo bg-[#8C432A]); los componentes aún no los consumen. */
+:root {
+  --background: #faf7f2;
+  --foreground: #2b2a28;
+
+  --card: #faf9f7;
+  --card-foreground: #2b2a28;
+  --popover: #ffffff;
+  --popover-foreground: #2b2a28;
+
+  --primary: #8c432a;
+  --primary-foreground: #fdfbf7;
+  --secondary: #f0eae1;
+  --secondary-foreground: #5a4e46;
+  --muted: #f2ece3;
+  --muted-foreground: #7a6d63;
+  --accent: #f5ece8;
+  --accent-foreground: #6a3825;
+  --destructive: #b3261e;
+  --destructive-foreground: #ffffff;
+
+  --border: #e5dfd7;
+  --input: #ddd5cb;
+  --ring: #8c432a;
+
+  --sidebar: #faf9f7;
+  --sidebar-foreground: #2b2a28;
+  --sidebar-primary: #8c432a;
+  --sidebar-primary-foreground: #fdfbf7;
+  --sidebar-accent: #f5ece8;
+  --sidebar-accent-foreground: #6a3825;
+  --sidebar-border: #e5dfd7;
+  --sidebar-ring: #8c432a;
+
+  --chart-1: #8c432a;
+  --chart-2: #a6543a;
+  --chart-3: #c9886d;
+  --chart-4: #6a3825;
+  --chart-5: #7d6e64;
+}
+
+/* Rama oscura. Hoy no la usa ninguna página (las tres envyuelven su propio
+   bg-[#FAF7F2]), pero queda coherente con la marca para cuando el sitio
+   adopte modo oscuro, en vez del gris frío de create-next-app. */
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    --background: #1c1b1a;
+    --foreground: #faf7f2;
+
+    --card: #24211f;
+    --card-foreground: #faf7f2;
+    --popover: #24211f;
+    --popover-foreground: #faf7f2;
+
+    --primary: #c9886d;
+    --primary-foreground: #1c1b1a;
+    --secondary: #2f2a27;
+    --secondary-foreground: #e8ddd3;
+    --muted: #2a2523;
+    --muted-foreground: #a89d95;
+    --accent: #332925;
+    --accent-foreground: #e8d5ce;
+    --destructive: #ea4335;
+    --destructive-foreground: #1c1b1a;
+
+    --border: #3d352f;
+    --input: #4a3e38;
+    --ring: #c9886d;
+
+    --sidebar: #211f1d;
+    --sidebar-foreground: #faf7f2;
+    --sidebar-primary: #c9886d;
+    --sidebar-primary-foreground: #1c1b1a;
+    --sidebar-accent: #332925;
+    --sidebar-accent-foreground: #e8d5ce;
+    --sidebar-border: #3d352f;
+    --sidebar-ring: #c9886d;
+
+    --chart-1: #c9886d;
+    --chart-2: #d89a80;
+    --chart-3: #a6543a;
+    --chart-4: #e8d5ce;
+    --chart-5: #a89d95;
   }
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
+  /* Arial a propósito: es lo que renderiza el sitio hoy. Cambiarlo a
+     var(--font-sans) pondría Geist en toda la landing, que es un cambio
+     visual que no se pidió. La fuente del editor se define en su CSS Module. */
   font-family: Arial, Helvetica, sans-serif;
 }

@@ -25,7 +25,7 @@ export const useAuthStore = create<AuthState>((set) => ({
     set({ isLoading: true });
     try {
       const perfil = await apiGetPerfil();
-      if (perfil && perfil.usuarioId) {
+      if (perfil && perfil.id) {
         set({
           user: perfil,
           isAuthenticated: true,
