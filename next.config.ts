@@ -8,10 +8,24 @@ import type { NextConfig } from "next";
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
 
 /**
+ * El MISMO origen del backend, pero con esquema de WebSocket.
+ *
+ * ESTO NO ES COSMÉTICO. `connect-src` evalúa la URL del WebSocket tal cual, con
+ * `ws://` o `wss://`, así que listar `http://api` NO habilita `ws://api`. Sin
+ * esta línea el navegador bloquea el handshake de socket.io y toda la
+ * colaboración —presencia y sincronización— queda muerta sin ningún error en el
+ * código: el CSP solo aparece en la consola.
+ *
+ * Se Vera del `NEXT_PUBLIC_API_URL` en vez de hardcodear `ws://localhost:*`,
+ * porque el backend de producción es https y necesita `wss`.
+ */
+const API_WS_URL = API_BASE_URL.replace(/^http:/, "ws:").replace(/^https:/, "wss:");
+
+/**
  * Orígenes de assets de terceros.
  *
  * Son dos y distintos, y el CSP tiene que contemplating los dos:
- *  - El bucket de Supabase: thumbnails y modelos `.glb` del catálogo de
+ *  -  - El bucket de Supabase: thumbnails y modelos `.glb` del catálogo de
  *    muebles, con URLs ya absolutas hardcodeadas en el paquete.
  *  - `editor.pascal.app`: el CDN por defecto de `@pascal-app/viewer`, del que
  *    salen las texturas y los assets de la biblioteca de materiales
@@ -43,7 +57,7 @@ const ASSETS_CDN = process.env.NEXT_PUBLIC_ASSETS_CDN_URL || "https://editor.pas
  */
 const CSP = [
   "default-src 'self'",
-  `connect-src 'self' ${API_BASE_URL} ${ASSETS_ORIGIN} ${ASSETS_CDN}`,
+  `connect-src 'self' ${API_BASE_URL} ${API_WS_URL} ${ASSETS_ORIGIN} ${ASSETS_CDN}`,
   `img-src 'self' data: blob: ${ASSETS_ORIGIN} ${ASSETS_CDN}`,
   `font-src 'self' data: ${ASSETS_CDN}`,
   // Las imágenes guía del editor se sirven como blob: y some los .glb y las
