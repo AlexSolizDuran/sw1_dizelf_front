@@ -13,17 +13,13 @@ export function Navbar() {
   // mueve en cada login/logout.
   const user = useAuthStore((s) => s.user);
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
-  const isInitialized = useAuthStore((s) => s.isInitialized);
-  const checkSession = useAuthStore((s) => s.checkSession);
   const logout = useAuthStore((s) => s.logout);
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    if (!isInitialized) {
-      checkSession();
-    }
-  }, [isInitialized, checkSession]);
+  // `checkSession` ya no se llama desde acá: lo dispara `SessionProvider` en el
+  // layout raíz. Depender del Navbar hacía que las rutas sin Navbar —el editor,
+  // el login— nunca restauraran la sesión.
 
   // Cerrar dropdown si se hace click afuera
   useEffect(() => {
