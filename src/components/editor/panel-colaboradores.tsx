@@ -3,6 +3,7 @@
 import { useCallback, useState } from "react";
 import { Trash2, UserPlus, Users } from "lucide-react";
 import {
+  apiActualizarColaborador,
   apiAgregarColaborador,
   apiListarColaboradores,
   apiQuitarColaborador,
@@ -14,11 +15,15 @@ import s from "./editor.module.css";
 /**
  * Quién está invitado al proyecto y con qué permiso.
  *
- * Solo el creador puede invitar o quitar; el resto ve la lista y nada más. La
- * condición sale de `proyecto.miRol`, que el backend ya resolvió.
+ * Solo el creador puede invitar, cambiar permisos o quitar; el resto ve la
+ * lista y nada más. La condición sale de `proyecto.miRol`, que el backend ya
+ * resolvió.
  *
- * El permiso se elige explícitamente porque no es obvio: con `EDITOR` la otra
- * persona modifica tu plano, y esa decisión no debería taken por defecto.
+ * POR DEFECTO, LECTURA
+ * --------------------
+ * El invitado entra como LECTOR salvo que el creador elija EDITOR a mano:
+ * compartir un enlace no debería conceder escritura sin querer. El permiso se
+ * puede cambiar después desde la misma lista, sin quitar y volver a invitar.
  */
 export function PanelColaboradores({
   proyectoId,
@@ -31,10 +36,16 @@ export function PanelColaboradores({
   const [cargando, setCargando] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [identificador, setIdentificador] = useState("");
-  const [rol, setRol] = useState<"EDITOR" | "LECTOR">("EDITOR");
+  const [rol, setRol] = useState<"EDITOR" | "LECTOR">("LECTOR");
   const [enviando, setEnviando] = useState(false);
+  const [cambiando, setCambiando] = useState<number | null>(null);
 
   const esCreador = miRol === "CREADOR";
+
+  // El select de permiso solo puede mostrar los del catálogo; si el backend
+  // devuelve uno nuevo, se cae al texto en vez de dejar el select en blanco.
+  const permisoConocido = (p: string): p is "EDITOR" | "LECTOR" =>
+    p === "EDITOR" || p === "LECTOR";
 
   const cargar = useCallback(async () => {
     setCargando(true);
@@ -79,6 +90,33 @@ export function PanelColaboradores({
     }
   };
 
+  const cambiarPermiso = async (
+    colaborador: Colaborador,
+    nuevo: "EDITOR" | "LECTOR"
+  ) => {
+    if (nuevo === colaborador.permiso) return;
+    setCambiando(colaborador.usuarioId);
+    setError(null);
+    try {
+      const actualizado = await apiActualizarColaborador(
+        proyectoId,
+        colaborador.usuarioId,
+        nuevo
+      );
+      setColaboradores((prev) =>
+        prev.map((c) =>
+          c.usuarioId === actualizado.usuarioId ? actualizado : c
+        )
+      );
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : "No se pudo cambiar el permiso."
+      );
+    } finally {
+      setCambiando(null);
+    }
+  };
+
   return (
     <Popover>
       {({ abierto }) => (
@@ -103,8 +141,8 @@ export function PanelColaboradores({
               <p className={s.refEmpty}>Cargando…</p>
             ) : colaboradores.length === 0 ? (
               <p className={s.refEmpty}>
-                Todavía no hay colaboradores. Invitá a alguien por su usuario o
-                correo.
+                Todavía no hay colaboradores. Invitá a alguien por su correo
+                electrónico.
               </p>
             ) : (
               <ul className={s.colabLista}>
@@ -115,10 +153,35 @@ export function PanelColaboradores({
                     </span>
                     <span className={s.colabDatos}>
                       <span className={s.colabNombre}>{c.username}</span>
-                      <span className={s.colabRol} data-lector={!c.puedeEditar}>
-                        {c.permiso === "LECTOR" ? "Solo lectura" : "Puede editar"}
-                      </span>
+                      {!(esCreador && permisoConocido(c.permiso)) && (
+                        <span
+                          className={s.colabRol}
+                          data-lector={!c.puedeEditar}
+                        >
+                          {c.permiso === "LECTOR"
+                            ? "Solo lectura"
+                            : "Puede editar"}
+                        </span>
+                      )}
                     </span>
+                    {esCreador && permisoConocido(c.permiso) && (
+                      <select
+                        aria-label={`Permiso de ${c.username}`}
+                        className={s.colabSelect}
+                        disabled={cambiando === c.usuarioId}
+                        onChange={(e) =>
+                          cambiarPermiso(
+                            c,
+                            e.target.value as "EDITOR" | "LECTOR"
+                          )
+                        }
+                        title="Cambiar permiso"
+                        value={c.permiso}
+                      >
+                        <option value="LECTOR">Solo lectura</option>
+                        <option value="EDITOR">Puede editar</option>
+                      </select>
+                    )}
                     {esCreador && (
                       <button
                         aria-label={`Quitar a ${c.username}`}
@@ -138,14 +201,15 @@ export function PanelColaboradores({
             {esCreador && (
               <form className={s.colabForm} onSubmit={invitar}>
                 <label className={s.srOnly} htmlFor="invite-identificador">
-                  Usuario o correo a invitar
+                  Correo electrónico a invitar
                 </label>
                 <input
                   autoComplete="off"
                   className={s.colabInput}
                   id="invite-identificador"
                   onChange={(e) => setIdentificador(e.target.value)}
-                  placeholder="usuario o correo"
+                  placeholder="correo electrónico"
+                  type="email"
                   value={identificador}
                 />
 
@@ -158,8 +222,8 @@ export function PanelColaboradores({
                   onChange={(e) => setRol(e.target.value as "EDITOR" | "LECTOR")}
                   value={rol}
                 >
-                  <option value="EDITOR">Puede editar</option>
                   <option value="LECTOR">Solo lectura</option>
+                  <option value="EDITOR">Puede editar</option>
                 </select>
 
                 <button

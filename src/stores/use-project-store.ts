@@ -34,6 +34,12 @@ interface ProjectState {
   guardarVersion: (nombre?: string) => Promise<boolean>;
   cargarVersiones: () => Promise<void>;
 
+  /**
+   * Descarta el autosave encolado. Se usa al restaurar una versión: si había
+   * una escena vieja esperando para guardarse, mandarla pisaría lo restaurado.
+   */
+  descartarGuardadoPendiente: () => void;
+
   limpiar: () => void;
 }
 
@@ -198,6 +204,13 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
     } catch {
       // El historial es informativo: si no se puede listar, el editor sigue.
     }
+  },
+
+  descartarGuardadoPendiente: () => {
+    // Solo se tira lo ENCOLADO. Si hay un PATCH en vuelo no se puede cancelar;
+    // ese caso lo corrige el gateway, que ya re-sembró su doc con lo restaurado
+    // y lo vuelve a persistir en el siguiente debounce o al desconectar.
+    pendiente = null;
   },
 
   limpiar: () => {

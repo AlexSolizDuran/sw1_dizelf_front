@@ -84,6 +84,22 @@ export async function apiAgregarColaborador(
 }
 
 /**
+ * Cambia el permiso de un colaborador (EDITOR ↔ LECTOR).
+ *
+ * Solo el creador. `usuarioId` va en el path, como en el borrado.
+ */
+export async function apiActualizarColaborador(
+  id: string,
+  usuarioId: number,
+  rol: "EDITOR" | "LECTOR"
+): Promise<Colaborador> {
+  return apiClient<Colaborador>(
+    `/proyectos/${id}/colaboradores/${usuarioId}`,
+    { method: "PATCH", body: JSON.stringify({ rol }) }
+  );
+}
+
+/**
  * Guardado manual: consolida.
  *
  * A diferencia del autosave, este es el único camino que crea una fila en
@@ -120,6 +136,29 @@ export async function apiRestaurarVersion(
   return apiClient<Proyecto>(
     `/proyectos/${id}/versiones/${versionId}/restaurar`,
     { method: "POST", body: JSON.stringify({}) }
+  );
+}
+
+/** Renombra una versión del historial. Solo cambia la etiqueta. */
+export async function apiRenombrarVersion(
+  id: string,
+  versionId: number,
+  nombre: string
+): Promise<Version> {
+  return apiClient<Version>(`/proyectos/${id}/versiones/${versionId}`, {
+    method: "PATCH",
+    body: JSON.stringify({ nombre }),
+  });
+}
+
+/** Elimina una versión del historial. No toca el documento vivo. */
+export async function apiEliminarVersion(
+  id: string,
+  versionId: number
+): Promise<{ message: string }> {
+  return apiClient<{ message: string }>(
+    `/proyectos/${id}/versiones/${versionId}`,
+    { method: "DELETE" }
   );
 }
 

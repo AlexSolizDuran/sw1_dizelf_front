@@ -10,16 +10,22 @@ Editor arquitectónico construido sobre `@pascal-app/editor`. Se abre en
 |---|---|
 | `editor-shell.tsx` | Orquesta todo: registro de nodos, tema, carga, guardado y el `<Editor>` |
 | `editor.module.css` | Tokens + clases del editor. **Todo el CSS vive acá** |
-| `editor-navbar.tsx` | Marca, 2D/3D, snapping, tema, estado de guardado |
-| `viewer-hud.tsx` | Indicadores flotantes sobre el lienzo |
+| `editor-navbar.tsx` | Marca, 2D/3D, snapping, tema, estado de guardado, colaboradores |
+| `indicador-presencia.tsx` | Quién más está en el plano (presencia en vivo) |
+| `panel-colaboradores.tsx` | Invitar por correo y gestionar permisos |
+| `panel-versiones.tsx` | Historial de versiones (guardar/renombrar/eliminar) |
 | `build-tab.tsx` | Las 9 herramientas de estructura |
 | `muebles-tab.tsx` | Catálogo de mobiliario (111 objetos) |
 | `materiales-tab.tsx` | Biblioteca de pinturas y texturas |
 | `estructura-tab.tsx` | El JSON de la escena y el manifiesto para IA |
 | `properties-panel.tsx` | Inspector del nodo seleccionado |
 | `level-bootstrap.tsx` | Auto-selecciona el primer edificio y nivel |
+| `menus/` | Bottom bar propia: modo, medición, cámara, referencias, niveles |
 | `icons/glyphs.tsx` | Tipo de nodo → ícono de lucide |
-| `icons/registry-patch.ts` | Reescribe los iconos del registro (ver abajo) |
+| `icons/registry-patch.tsx` | Reescribe los iconos del registro (ver abajo) |
+
+Los hooks de sincronización y presencia viven en `src/hooks/`
+(`use-sincronizacion.ts`, `use-presencia.ts`, `use-delete-on-click.ts`).
 
 La lógica pura va fuera del componente: `lib/editor/node-fields.ts` (campos del
 inspector), `lib/editor/scene-json.ts` (serialización) y `lib/editor/catalog-es.ts`

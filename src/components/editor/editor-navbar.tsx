@@ -28,12 +28,12 @@ interface Props {
   mensajeGuardado?: string | null;
   /** Con `true` el proyecto abierto es de solo lectura (permiso LECTOR). */
   soloLectura?: boolean;
-  onGuardarVersion?: () => void;
+  onGuardarVersion?: (nombre?: string) => void;
   /** Abre el canal de presencia de este proyecto. */
   proyectoId: string;
   /** Rol del usuario en este proyecto: `CREADOR` o el permiso de la base. */
   miRol: string;
-  /** Recarga el editor tras restaurar una versión. */
+  /** Se dispara tras restaurar una versión (avisa y limpia el autosave). */
   onRestaurar: () => void;
 }
 
@@ -66,9 +66,13 @@ export function EditorNavbar({
 
   const guardarVersion = useCallback(async () => {
     if (!onGuardarVersion || guardandoVersion) return;
+    // El nombre es opcional: vacío guarda sin etiqueta, cancelar aborta.
+    const entrada = window.prompt("Nombre de la versión (opcional):", "");
+    if (entrada === null) return;
+    const nombre = entrada.trim() || undefined;
     setGuardandoVersion(true);
     try {
-      await onGuardarVersion();
+      await onGuardarVersion(nombre);
     } finally {
       setGuardandoVersion(false);
     }
@@ -92,20 +96,13 @@ export function EditorNavbar({
 
       <div className="ml-auto flex items-center gap-2">
         {soloLectura ? (
-          <>
-            <span
-              className={s.saveState}
-              data-tone="idle"
-              title="Tu permiso en este proyecto es de solo lectura."
-            >
-              Solo lectura
-            </span>
-            <PanelColaboradores
-              miRol={miRol}
-              proyectoId={proyectoId}
-            />
-            <IndicadorPresencia proyectoId={proyectoId} />
-          </>
+          <span
+            className={s.saveState}
+            data-tone="idle"
+            title="Tu permiso en este proyecto es de solo lectura."
+          >
+            Solo lectura
+          </span>
         ) : (
           <>
             <div
@@ -140,10 +137,16 @@ export function EditorNavbar({
               puedeEditar
               proyectoId={proyectoId}
             />
-
-            <IndicadorPresencia proyectoId={proyectoId} />
           </>
         )}
+
+        {/*
+          Colaboradores y presentes son comunes a todos los roles: el panel
+          decide qué mostrar según `miRol`, y solo el creador puede invitar,
+          cambiar permisos o quitar gente.
+        */}
+        <PanelColaboradores miRol={miRol} proyectoId={proyectoId} />
+        <IndicadorPresencia proyectoId={proyectoId} />
 
         <div className={s.seg}>
           <button

@@ -1,8 +1,13 @@
 "use client";
 
 import { useCallback, useState } from "react";
-import { History, RotateCcw } from "lucide-react";
-import { apiListarVersiones, apiRestaurarVersion } from "@/lib/projects";
+import { History, Pencil, RotateCcw, Trash2 } from "lucide-react";
+import {
+  apiEliminarVersion,
+  apiListarVersiones,
+  apiRenombrarVersion,
+  apiRestaurarVersion,
+} from "@/lib/projects";
 import type { Version } from "@/types/proyecto";
 import { Popover, PopoverBody, PopoverTrigger } from "./menus/ui/popover";
 import s from "./editor.module.css";
@@ -13,14 +18,20 @@ import s from "./editor.module.css";
  * Solo aparece con permiso de edición: un LECTOR no puede guardar y por lo
  * tanto tampoco tiene nada que restaurar.
  *
- * RESTAURAR RECARGA EL EDITOR, Y NO POR COSMETÍA
- * ----------------------------------------------
- * La restauración escribe en `documento_colaborativo`, pero al restoring sigue
- * abierto puede haber dos cosas desactualizadas: el `useScene` del cliente y el
- * `Y.Doc` que el gateway tiene en memoria. Si solo se recarga la lista, el
- * siguiente guardado del CRDT volvería a pisar lo que se restauró. Por eso
- * `alRestaurar` recarga la página: el cliente se desconecta, el gateway
- * libera el doc y el siguiente que entra lo siembra desde la base.
+ * RESTAURAR YA NO RECARGA EL EDITOR
+ * ----------------------------------
+ * Antes sí: sin `aplicarRestauracion` en el gateway, el `Y.Doc` en memoria
+ * seguía con la escena vieja y la volvía a pisar. Ahora el backend re-siembra
+ * ese doc y difunde `sync:inicial`, y el cliente lo aplica con `setScene`
+ * (reemplazo total). La escena en vivo se actualiza sola; `alRestaurar` solo
+ * avisa y descarta el autosave encolado.
+ *
+ * RENOMBRAR Y ELIMINAR
+ * --------------------
+ * Son operaciones sobre la FILA del historial, no sobre el plano. Renombrar
+ * cambia solo la etiqueta; eliminar quita el punto de restauración sin tocar el
+ * documento vivo. La lista se actualiza en memoria con la respuesta, sin
+ * recargar.
  */
 export function PanelVersiones({
   proyectoId,
@@ -50,7 +61,7 @@ export function PanelVersiones({
 
   const restaurar = async (version: Version) => {
     const ok = window.confirm(
-      "Restaurar este guardado. Se va a recargar el editor y perderás de la pantalla lo que hiciste desde entonces, aunque queda en el historial como un guardado nuevo."
+      "Restaurar este guardado. Se va a reemplazar la escena actual por la de esa versión; lo que hiciste desde entonces queda en el historial."
     );
     if (!ok) return;
 
@@ -64,6 +75,46 @@ export function PanelVersiones({
       setError(e instanceof Error ? e.message : "No se pudo restaurar.");
     } finally {
       setRestaurando(null);
+    }
+  };
+
+  const renombrar = async (version: Version) => {
+    const entrada = window.prompt(
+      "Nuevo nombre de la versión:",
+      version.nombre ?? ""
+    );
+    if (entrada === null) return;
+    const nombre = entrada.trim();
+    if (!nombre) return;
+
+    setError(null);
+    try {
+      const actualizada = await apiRenombrarVersion(
+        proyectoId,
+        version.id,
+        nombre
+      );
+      setVersiones((prev) =>
+        prev.map((v) => (v.id === actualizada.id ? actualizada : v))
+      );
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "No se pudo renombrar.");
+    }
+  };
+
+  const eliminar = async (version: Version) => {
+    const etiqueta = version.nombre ?? `Versión ${version.id}`;
+    const ok = window.confirm(
+      `Eliminar «${etiqueta}». No se puede deshacer y no afecta al plano actual.`
+    );
+    if (!ok) return;
+
+    setError(null);
+    try {
+      await apiEliminarVersion(proyectoId, version.id);
+      setVersiones((prev) => prev.filter((v) => v.id !== version.id));
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "No se pudo eliminar.");
     }
   };
 
@@ -117,6 +168,24 @@ export function PanelVersiones({
                       type="button"
                     >
                       <RotateCcw className="w-3 h-3" />
+                    </button>
+                    <button
+                      aria-label={`Renombrar la versión del ${new Date(v.fecha).toLocaleString("es-AR")}`}
+                      className={s.refEditar}
+                      onClick={() => renombrar(v)}
+                      title="Renombrar"
+                      type="button"
+                    >
+                      <Pencil className="w-3 h-3" />
+                    </button>
+                    <button
+                      aria-label={`Eliminar la versión del ${new Date(v.fecha).toLocaleString("es-AR")}`}
+                      className={s.refBorrar}
+                      onClick={() => eliminar(v)}
+                      title="Eliminar"
+                      type="button"
+                    >
+                      <Trash2 className="w-3 h-3" />
                     </button>
                   </li>
                 ))}

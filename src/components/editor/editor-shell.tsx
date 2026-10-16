@@ -232,8 +232,8 @@ export function EditorShell({ proyectoId, nombreProyecto }: Props) {
             <EditorNavbar
               mensajeGuardado={aviso}
               nombreProyecto={nombreProyecto}
-              onGuardarVersion={async () => {
-                const ok = await guardarVersion();
+              onGuardarVersion={async (nombre) => {
+                const ok = await guardarVersion(nombre);
                 if (ok) {
                   setTono("saved");
                   setAviso("Versión guardada: se puede volver a este punto.");
@@ -243,10 +243,13 @@ export function EditorShell({ proyectoId, nombreProyecto }: Props) {
                 }
               }}
               onRestaurar={() => {
-                // Recarga completa: el Y.Doc en memoria del gateway y el useScene
-                // del cliente seguirían con la escena anterior y la pisarían al
-                // siguiente guardado. Ver la nota de PanelVersiones.
-                window.location.reload();
+                // Sin recarga: el backend re-siembra el doc del gateway y
+                // difunde `sync:inicial`, que reemplaza la escena en vivo (ver
+                // use-sincronizacion). Solo se tira el autosave encolado, para
+                // que una escena vieja en espera no pise lo restaurado.
+                useProjectStore.getState().descartarGuardadoPendiente();
+                setTono("saved");
+                setAviso("Versión restaurada.");
               }}
               onToggleTema={toggleTema}
               miRol={proyecto?.miRol ?? "CREADOR"}

@@ -65,7 +65,7 @@ export function useSincronizacion(
   useEffect(() => {
     if (!proyectoId || !puedeEditar) return;
 
-    const doc = new Y.Doc();
+    let doc = new Y.Doc();
     docRef.current = doc;
     inicializado.current = false;
 
@@ -79,12 +79,18 @@ export function useSincronizacion(
     socketRef.current = socket;
 
     // ── Local → doc ──────────────────────────────────────────────────────────
-    doc.on("update", (update: Uint8Array, origen: unknown) => {
+    // Se factoriza porque `sync:inicial` reemplaza el doc entero y hay que
+    // enganchar el reenvío en el doc nuevo.
+    const reenviar = (update: Uint8Array, origen: unknown) => {
       // Lo que dispara el handler de abajo lleva `origen = 'remoto'` y no se
       // reenvía: es el corte del eco.
       if (origen === "remoto") return;
       socket.emit("sync:update", update);
-    });
+    };
+    const enlazar = (objetivo: Y.Doc): void => {
+      objetivo.on("update", reenviar);
+    };
+    enlazar(doc);
 
     const desuscribir = useScene.subscribe((estado, previo) => {
       if (aplicandoRemoto.current) return;
@@ -118,7 +124,7 @@ export function useSincronizacion(
         const raices = doc.getArray<AnyNodeId>("scene:roots");
         doc.transact(() => {
           raices.delete(0, raices.length);
-          raices.push(siguiente.rootNodeIds);
+          raices.push([...new Set(siguiente.rootNodeIds)]);
         });
       }
     });
@@ -130,6 +136,18 @@ export function useSincronizacion(
 
       aplicandoRemoto.current = true;
       try {
+        // `sync:inicial` es el estado COMPLETO, no un delta: reemplaza.
+        // Aplicarlo con `applyUpdate` sobre un doc que ya traía contenido
+        // FUSIONA (CRDT), no reemplaza, y las raíces viejas sobreviven: cada
+        // re-seed del gateway (restaurar versión, reconexión) sumaba otra copia
+        // del `site` y el plano terminaba con cientos de `site_default`
+        // duplicados, que revientan React (clave repetida) y WebGPU.
+        doc.off("update", reenviar);
+        doc.destroy();
+        doc = new Y.Doc();
+        enlazar(doc);
+        docRef.current = doc;
+
         Y.applyUpdate(doc, bytes, "remoto");
 
         const estado = materializar(doc);
@@ -147,6 +165,11 @@ export function useSincronizacion(
 
         anteriorRef.current = estado;
         inicializado.current = true;
+
+        // Confirma la generación aplicada: hasta que el gateway recibe esto,
+        // descarta nuestros updates (podrían ser de la escena previa al
+        // restore). Ver `confirmarInicial` en el gateway.
+        socket.emit("sync:listo");
       } finally {
         aplicandoRemoto.current = false;
       }

@@ -92,8 +92,11 @@ export interface ActualizarProyectoInput {
 
 export interface AgregarColaboradorInput {
   identificador: string;
-  /** `EDITOR` o `LECTOR`. El backend valida contra el catálogo. */
-  rol: "EDITOR" | "LECTOR";
+  /**
+   * `EDITOR` o `LECTOR`. El backend valida contra el catálogo. Opcional: si se
+   * omite, el invitado entra como LECTOR (permiso por defecto del backend).
+   */
+  rol?: "EDITOR" | "LECTOR";
 }
 
 /**

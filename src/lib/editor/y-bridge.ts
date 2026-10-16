@@ -120,7 +120,7 @@ export function reemplazarTodo(doc: Y.Doc, estado: EstadoEscena): void {
     }
 
     raices.delete(0, raices.length);
-    raices.push(estado.rootNodeIds);
+    raices.push([...new Set(estado.rootNodeIds)]);
   });
 }
 
