@@ -35,11 +35,71 @@ const ASSETS_ORIGIN = "https://byrpxoiotywskoojsrzd.supabase.co";
 const ASSETS_CDN = process.env.NEXT_PUBLIC_ASSETS_CDN_URL || "https://editor.pascal.app";
 
 /**
+ * CDN del decodificador Draco.
+ *
+ * Casi toda la geometría del editor (muebles del catálogo y el banderín de
+ * medición del sitio) viene comprimida con `KHR_draco_mesh_compression`. Tanto
+ * `@pascal-app/nodes` (`dist/item/renderer.js`) como drei (`useGLTF(url, true)`
+ * en el editor) hacen `DRACOLoader.setDecoderPath(...)` sobre esta URL, así que
+ * el loader baja `draco_wasm_wrapper.js` y `draco_decoder.wasm` con `fetch`.
+ *
+ * Sin este origen en `connect-src` el navegador corta esas dos descargas y el
+ * síntoma es un `Failed to fetch` al abrir cualquier modelo comprimido, no un
+ * mensaje que apunte al CSP.
+ */
+const DRACO_CDN = "https://www.gstatic.com";
+
+/**
+ * CDN del transcoder KTX2/Basis.
+ *
+ * Las texturas comprimidas (`.ktx2`, sobre todo las de acabados del catálogo y
+ * algunos GLB) las transcodifica `KTX2Loader` con el WASM de Basis, que el
+ * viewer apunta a jsdelivr (`lib/ktx2-loader.js`:
+ * `setTranscoderPath('https://cdn.jsdelivr.net/gh/pmndrs/drei-assets@master/basis/')`).
+ *
+ * El loader baja el wrapper/WASM con `fetch` (→ `connect-src`) y levanta un
+ * `Worker` para transcodificar (→ `worker-src`). Faltando el origen, las texturas
+ * comprimidas no cargan y el material queda roto.
+ */
+const KTX2_CDN = "https://cdn.jsdelivr.net";
+
+/**
+ * API de iconos de Iconify.
+ *
+ * `@pascal-app/editor` pinta buena parte de su HUD con `@iconify/react` (el
+ * panel de atajos contextual, los chips de snapping, los badges del cursor…),
+ * y ese runtime baja el JSON de cada set con `fetch` desde el primer host que
+ * responde de esta lista (los otros dos son los fallbacks que el propio paquete
+ * prueba en orden). Sin estos orígenes en `connect-src` cada icono queda en
+ * blanco: no hay error en el código, solo una violación de CSP en la consola.
+ */
+const ICONIFY_ORIGINS = [
+  "https://api.iconify.design",
+  "https://api.simplesvg.com",
+  "https://api.unisvg.com",
+].join(" ");
+
+/**
+ * `'unsafe-eval'` solo en desarrollo.
+ *
+ * En `next dev`, React usa `eval()` para Fast Refresh, HMR y reconstruir
+ * callstacks entre entornos; sin él el navegador lanza "eval() is not supported
+ * in this environment" y la app no hidrata. `wasm-unsafe-eval` NO lo cubre: es
+ * una directiva distinta, solo para compilar WebAssembly.
+ *
+ * En producción React nunca llama a `eval()`, así que prod queda sin la
+ * directiva y el CSP sigue igual de estricto.
+ */
+const IS_DEV = process.env.NODE_ENV !== "production";
+
+/**
  * CSP del sitio.
  *
  * `script-src` y `style-src` necesitan `'unsafe-inline'`: Next inyecta el
  * payload de hidratación en `<script>` inline y Tailwind v4 emite los estilos
- * como `<style>` inline en dev. Una CSP estricta con nonce exigiría un
+ * como `<style>` inline en dev. Además, en dev se agrega `'unsafe-eval'` (ver
+ * `IS_DEV`) porque React lo exige para Fast Refresh; en prod no. Una CSP
+ * estricta con nonce exigiría un
  * `middleware.ts` que lo inyecte; lo que sí se cierra acá, sobre un árbol que
  * ya no tiene sinks de inyección (`dangerouslySetInnerHTML`, `innerHTML`, `eval`
  * y `JSON.parse` de datos remotos dan 0 en `src/`), es:
@@ -53,22 +113,28 @@ const ASSETS_CDN = process.env.NEXT_PUBLIC_ASSETS_CDN_URL || "https://editor.pas
  * `connect-src` lleva los dos orígenes de assets y no solo el backend: los
  * `.glb` y las texturas los baja `GLTFLoader`/`TextureLoader` con `fetch`, no
  * con `<img>`, así que un CSP que los dejara solo en `img-src` rompería el
- * catálogo de muebles y la biblioteca de materiales en silencio.
+ * catálogo de muebles y la biblioteca de materiales en silencio. Además lleva:
+ *
+ *   `data:`       → el banderín de medición del sitio es un GLB embebido como
+ *                   `data:model/gltf-binary;base64,…`; `fetch()` sobre un data
+ *                   URI cae bajo `connect-src`.
+ *   `DRACO_CDN`   → decoder Draco (ver arriba).
+ *   `KTX2_CDN`    → transcoder KTX2 (ver arriba), también en `worker-src`.
  */
 const CSP = [
   "default-src 'self'",
-  `connect-src 'self' ${API_BASE_URL} ${API_WS_URL} ${ASSETS_ORIGIN} ${ASSETS_CDN}`,
+  `connect-src 'self' data: ${API_BASE_URL} ${API_WS_URL} ${ASSETS_ORIGIN} ${ASSETS_CDN} ${DRACO_CDN} ${KTX2_CDN} ${ICONIFY_ORIGINS}`,
   `img-src 'self' data: blob: ${ASSETS_ORIGIN} ${ASSETS_CDN}`,
   `font-src 'self' data: ${ASSETS_CDN}`,
   // Las imágenes guía del editor se sirven como blob: y some los .glb y las
   // texturas salen de los orígenes de arriba.
   `media-src 'self' blob: ${ASSETS_ORIGIN}`,
-  "worker-src 'self' blob:",
+  `worker-src 'self' blob: ${KTX2_CDN}`,
   "object-src 'none'",
   "base-uri 'self'",
   "form-action 'self'",
   "frame-ancestors 'none'",
-  "script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval'",
+  `script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval'${IS_DEV ? " 'unsafe-eval'" : ""}`,
   "style-src 'self' 'unsafe-inline'",
   // El decodificador draco del visor 3D es WebAssembly.
 ].join("; ");
@@ -89,20 +155,29 @@ const nextConfig: NextConfig = {
   ],
 
   // `@pascal-app` carga sus íconos con <img src="/icons/algo.webp"> y este
-  // proyecto no tiene esos `.webp`. Se-atendían con un rewrite + route handler
-  // que generaba SVG desde lucide; hoy sobra: de los 37 iconos que pide el
-  // paquete, en esta interfaz solo llega uno — el cursor de pintura, en
-  // `material-paint` — y está como archivo estático en `public/icons/`.
+  // proyecto no tiene esos `.webp`. La mayoría de sus usos quedan reemplazados
+  // por lucide directo (`icons/glyphs.tsx`) o nunca se renderizan (el árbol del
+  // panel de Sitio y el rail usan los tabs que le pasamos en `sidebarTabs`, y el
+  // catálogo usa `icons/registry-patch.tsx`).
   //
-  // El resto vino reemplazado por lucide directo (`icons/glyphs.tsx`) o nunca
-  // se renderiza: el árbol del panel de Sitio y el rail usan los tabs que le
-  // pasamos en `sidebarTabs`, y el catálogo usa `icons/registry-patch.tsx`.
+  // Pero NO todos: el badge del cursor 2D (`floorplan-cursor-indicator-overlay`)
+  // y el overlay 3D sí pintan el `iconSrc` del tool activo, así que sin atender
+  // esa ruta el badge queda con la imagen rota. `rewrites` manda `/icons/:name`
+  // a un route handler que devuelve un SVG generado desde el mismo mapa lucide.
   //
-  // El paquete pide `/icons/algo.webp` pero el archivo contiene SVG, y la
-  // extensión es la que el paquete espera. El `Content-Type` se fija sobre el
-  // archivo exacto y no sobre `/icons/:archivo`: aplicarlo a la carpeta entera
-  // hacía que cualquier `.webp` real que se agregara ahí se sirviera como SVG y
-  // el navegador lo parseara con ese parser.
+  // Es `afterFiles` a propósito: `public/icons/paint.webp` es un archivo real y
+  // tiene que ganarle al handler (si no, se pisa con el SVG genérico).
+  async rewrites() {
+    return {
+      afterFiles: [{ source: "/icons/:name", destination: "/api/icons/:name" }],
+    };
+  },
+
+  // El `Content-Type` de `paint.webp` se fija sobre el archivo exacto y no sobre
+  // `/icons/:archivo`: aplicarlo a la carpeta entera hacía que cualquier `.webp`
+  // real que se agregara ahí se sirviera como SVG y el navegador lo parseara con
+  // ese parser. Los demás nombres los sirve `api/icons/[name]` ya con el header
+  // correcto.
   async headers() {
     return [
       {

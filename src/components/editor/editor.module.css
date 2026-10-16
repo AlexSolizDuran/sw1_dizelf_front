@@ -97,6 +97,33 @@
   backdrop-filter: none;
 }
 
+/* El paquete fija `.dark` en su raíz (`editor-layout-v2.tsx:251`), así que sus
+   utilidades `dark:*` ganan aunque `.shell` re-tematice los tokens a claro. La
+   brújula y los badges del cursor quedaban con fondo negro en un editor blanco.
+   Se reanclan a los tokens del tema; solo aplica en `.shell`, porque `.shellDark`
+   quiere conservar su fondo oscuro. */
+.shell :global([class*="dark:bg-neutral-900/85"]),
+.shell :global([class*="dark:bg-neutral-900/85"]:hover) {
+  background-color: var(--popover) !important;
+  border-color: var(--border) !important;
+}
+
+.shell :global([class*="dark:bg-neutral-700"]) {
+  background-color: var(--muted) !important;
+}
+
+.shell :global([class*="bg-zinc-900/95"]) {
+  background-color: color-mix(in oklch, var(--popover) 92%, transparent) !important;
+  border-color: var(--border) !important;
+}
+
+/* El icono del badge del cursor va en `color="white"` inline: sobre el fondo
+   claro se perdería. Se reancla al foreground. Los badges con `<img>` no se
+   tocan (el SVG del route handler ya viene oscuro). */
+.shell :global([class*="bg-zinc-900/95"] svg) {
+  color: var(--foreground) !important;
+}
+
 /* El paquete usa `rounded-*` unas 363 veces, muchas fixed (xl, 2xl, [3px]).
    Estas reglas viven fuera de `@layer utilities`, así que ganan por orden de
    cascada y aplanan todo a un radio técnico. */
@@ -1356,6 +1383,22 @@
 .refBorrar:hover {
   background-color: color-mix(in oklch, var(--destructive) 12%, transparent);
   color: var(--destructive);
+}
+
+/* Renombrar: acción neutra, no destructiva. Mismo tamaño que el borrar. */
+.refEditar {
+  display: flex;
+  height: 20px;
+  width: 20px;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  color: var(--muted-foreground);
+}
+
+.refEditar:hover {
+  background-color: color-mix(in oklch, var(--primary) 12%, transparent);
+  color: var(--primary);
 }
 
 .refOpacity {
