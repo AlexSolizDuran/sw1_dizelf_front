@@ -20,7 +20,9 @@ export interface Proyecto {
   nombre: string;
   /**
    * El documento que se está mostrando. Viene de `documento_colaborativo` si
-   * existe y de `proyecto.esquema_json` si no; `origen` dice de cuál.
+   * existe y es más nuevo; si no, de `proyecto.esquema_json` (el último guardado
+   * consolidado o una versión manual más nueva que la persistencia del gateway).
+   * `origen` dice de cuál salió.
    */
   esquemaJson: Record<string, unknown>;
   creadorId: number;
@@ -83,11 +85,6 @@ export interface DocumentoProyecto {
 
 export interface CrearProyectoInput {
   nombre: string;
-}
-
-export interface ActualizarProyectoInput {
-  nombre?: string;
-  esquemaJson?: Record<string, unknown>;
 }
 
 export interface AgregarColaboradorInput {

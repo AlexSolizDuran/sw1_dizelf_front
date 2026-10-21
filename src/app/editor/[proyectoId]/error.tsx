@@ -67,7 +67,8 @@ export default function EditorError({
       >
         Puede ser que el navegador no tenga WebGL disponible, o que el proyecto
         haya quedado en un estado que el editor no puede leer. Si ya habías
-        hecho cambios, autosave los tenía guardados salvo el último segundo.
+        hecho cambios, el gateway de sincronización los guarda mientras la
+        conexión esté activa.
       </p>
 
       {error.digest ? (

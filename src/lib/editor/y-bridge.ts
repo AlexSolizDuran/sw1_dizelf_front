@@ -36,6 +36,20 @@ export const CLAVES = {
   plugins: "scene:plugins",
 } as const;
 
+/**
+ * Orígenes de las transacciones del doc.
+ *
+ * `ORIGEN_LOCAL` marca lo que escribe este cliente y es lo ÚNICO que
+ * `Y.UndoManager` registra en el historial. `ORIGEN_REMOTO` marca lo que llega
+ * del gateway: no se reenvía y no entra al historial. `ORIGEN_SISTEMA` es para
+ * escrituras locales que no son una acción del usuario (sembrar la escena,
+ * cambios hechos mientras una herramienta pausó el historial): se envían a los
+ * demás, pero no se pueden deshacer.
+ */
+export const ORIGEN_LOCAL = "local";
+export const ORIGEN_REMOTO = "remoto";
+export const ORIGEN_SISTEMA = "sistema";
+
 /** Parte del store que el puente necesita leer. */
 export interface EstadoEscena {
   nodes: Record<AnyNodeId, AnyNode>;
@@ -62,7 +76,9 @@ export function aplicarDelta(
   doc: Y.Doc,
   delta: DeltaNodos,
   /** Padre de la raíz, para las creaciones. El caller lo pasa porque el store lo sabe. */
-  parentPorDefecto?: AnyNodeId
+  parentPorDefecto?: AnyNodeId,
+  /** Origen de la transacción. Ver `ORIGEN_LOCAL` y compañía. */
+  origen: string = ORIGEN_LOCAL
 ): boolean {
   const nodos = doc.getMap<Y.Map<unknown>>(CLAVES.nodes);
   let cambio = false;
@@ -88,13 +104,13 @@ export function aplicarDelta(
       let toco = false;
       for (const [clave, valor] of Object.entries(data)) {
         if (valor === undefined) continue;
-        if (JSON.stringify(existente.get(clave)) === JSON.stringify(valor)) continue;
+        if (igualValor(existente.get(clave), valor)) continue;
         existente.set(clave, valor);
         toco = true;
       }
       if (toco) cambio = true;
     }
-  });
+  }, origen);
 
   return cambio;
 }
@@ -107,9 +123,20 @@ export function aplicarDelta(
  * `setScene` del store, no `applyNodeChanges`, porque la escena remota no es un
  * delta sino la verdad.
  */
-export function reemplazarTodo(doc: Y.Doc, estado: EstadoEscena): void {
+export function reemplazarTodo(
+  doc: Y.Doc,
+  estado: EstadoEscena,
+  /**
+   * Por defecto `ORIGEN_SISTEMA`: cargar la escena es el piso del historial, no
+   * una acción que se pueda deshacer. Igual se reenvía a los demás clientes.
+   */
+  origen: string = ORIGEN_SISTEMA
+): void {
   const nodos = doc.getMap<Y.Map<unknown>>(CLAVES.nodes);
   const raices = doc.getArray<AnyNodeId>(CLAVES.roots);
+  const colecciones = doc.getMap<unknown>(CLAVES.collections);
+  const materiales = doc.getMap<unknown>(CLAVES.materials);
+  const plugins = doc.getArray<string>(CLAVES.plugins);
 
   doc.transact(() => {
     for (const id of Array.from(nodos.keys())) {
@@ -121,7 +148,146 @@ export function reemplazarTodo(doc: Y.Doc, estado: EstadoEscena): void {
 
     raices.delete(0, raices.length);
     raices.push([...new Set(estado.rootNodeIds)]);
-  });
+
+    reemplazarMapa(colecciones, estado.collections);
+    reemplazarMapa(materiales, estado.materials);
+
+    plugins.delete(0, plugins.length);
+    plugins.push([...new Set(estado.installedPlugins)]);
+  }, origen);
+}
+
+/**
+ * Escribe en el doc los cambios que no son nodos.
+ *
+ * `diffEscena` solo compara nodos; raíces, colecciones, materiales y plugins
+ * viajan por estructuras aparte. Sin esto, el gateway nunca recibe esas partes
+ * y su primer persist las borra de la base.
+ *
+ * Devuelve `true` si escribió algo, para no generar updates vacíos.
+ */
+export function aplicarCambiosDocumento(
+  doc: Y.Doc,
+  anterior: EstadoEscena,
+  siguiente: EstadoEscena,
+  origen: string = ORIGEN_LOCAL
+): boolean {
+  // Comparaciones baratas: el store conserva la referencia de lo que no cambió
+  // (las acciones de nodos solo reemplazan `nodes`), así que la igualdad de
+  // referencia descarta la mayoría de los casos sin recorrer nada.
+  const raicesCambiaron = !igualValor(
+    anterior.rootNodeIds,
+    siguiente.rootNodeIds
+  );
+  const coleccionesCambiaron =
+    anterior.collections !== siguiente.collections &&
+    !mismosValores(anterior.collections, siguiente.collections);
+  const materialesCambiaron =
+    anterior.materials !== siguiente.materials &&
+    !mismosValores(anterior.materials, siguiente.materials);
+  const pluginsCambiaron =
+    anterior.installedPlugins !== siguiente.installedPlugins &&
+    !igualValor(anterior.installedPlugins, siguiente.installedPlugins);
+
+  if (
+    !raicesCambiaron &&
+    !coleccionesCambiaron &&
+    !materialesCambiaron &&
+    !pluginsCambiaron
+  ) {
+    return false;
+  }
+
+  doc.transact(() => {
+    if (raicesCambiaron) {
+      const raices = doc.getArray<AnyNodeId>(CLAVES.roots);
+      raices.delete(0, raices.length);
+      raices.push([...new Set(siguiente.rootNodeIds)]);
+    }
+
+    if (coleccionesCambiaron) {
+      sincronizarMapa(
+        doc.getMap<unknown>(CLAVES.collections),
+        anterior.collections,
+        siguiente.collections
+      );
+    }
+
+    if (materialesCambiaron) {
+      sincronizarMapa(
+        doc.getMap<unknown>(CLAVES.materials),
+        anterior.materials,
+        siguiente.materials
+      );
+    }
+
+    if (pluginsCambiaron) {
+      const plugins = doc.getArray<string>(CLAVES.plugins);
+      plugins.delete(0, plugins.length);
+      plugins.push([...new Set(siguiente.installedPlugins)]);
+    }
+  }, origen);
+
+  return true;
+}
+
+/**
+ * Fusiona el estado del servidor con el doc local en una reconexión.
+ *
+ * Al reconectar, el doc local puede tener ediciones que el servidor no vio. En
+ * vez de destruirlo (que es lo correcto al restaurar una versión), se aplica el
+ * estado del servidor con `ORIGEN_REMOTO` y se devuelve lo que el servidor no
+ * conoce para reenviarlo después del `sync:listo`.
+ *
+ * El orden importa: `cambiosLocales` se calcula ANTES de aplicar el update del
+ * servidor, porque después el doc ya no distingue qué vino de cada lado.
+ */
+export function fusionarDocumento(
+  doc: Y.Doc,
+  updateServidor: Uint8Array
+): Uint8Array {
+  const servidor = new Y.Doc();
+  try {
+    Y.applyUpdate(servidor, updateServidor);
+    const cambiosLocales = Y.encodeStateAsUpdate(
+      doc,
+      Y.encodeStateVector(servidor)
+    );
+
+    Y.applyUpdate(doc, updateServidor, ORIGEN_REMOTO);
+    return cambiosLocales;
+  } finally {
+    servidor.destroy();
+  }
+}
+
+/** Reemplaza todo el contenido de un `Y.Map` de valores planos. */
+function reemplazarMapa(
+  mapa: Y.Map<unknown>,
+  valores: Record<string, unknown>
+): void {
+  for (const clave of Array.from(mapa.keys())) {
+    mapa.delete(clave);
+  }
+  for (const [clave, valor] of Object.entries(valores)) {
+    if (valor !== undefined) mapa.set(clave, valor);
+  }
+}
+
+/** Aplica solo las altas, bajas y cambios de un `Y.Map` de valores planos. */
+function sincronizarMapa(
+  mapa: Y.Map<unknown>,
+  anterior: Record<string, unknown>,
+  siguiente: Record<string, unknown>
+): void {
+  for (const [clave, valor] of Object.entries(siguiente)) {
+    if (valor === undefined) continue;
+    if (igualValor(anterior[clave], valor)) continue;
+    mapa.set(clave, valor);
+  }
+  for (const clave of Array.from(mapa.keys())) {
+    if (siguiente[clave] === undefined) mapa.delete(clave);
+  }
 }
 
 /** Convierte el `Y.Doc` a la forma que el store entiende. */
@@ -162,11 +328,74 @@ function nodoAMap(
 }
 
 /**
+ * Igualdad estructural para valores JSON, sin serializar.
+ *
+ * `JSON.stringify` por campo era el costo dominante del diff: asignaba una
+ * cadena por cada valor de cada nodo en cada cambio. Esto corta en el primer
+ * valor distinto y no asigna nada en el caso común (primitivos).
+ */
+function igualValor(a: unknown, b: unknown): boolean {
+  if (Object.is(a, b)) return true;
+  if (typeof a !== "object" || typeof b !== "object") return false;
+  if (a === null || b === null) return false;
+
+  const aEsArray = Array.isArray(a);
+  if (aEsArray !== Array.isArray(b)) return false;
+
+  if (aEsArray) {
+    const arregloA = a as unknown[];
+    const arregloB = b as unknown[];
+    if (arregloA.length !== arregloB.length) return false;
+    for (let i = 0; i < arregloA.length; i++) {
+      if (!igualValor(arregloA[i], arregloB[i])) return false;
+    }
+    return true;
+  }
+
+  const objetoA = a as Record<string, unknown>;
+  const objetoB = b as Record<string, unknown>;
+  const clavesA = Object.keys(objetoA);
+  if (clavesA.length !== Object.keys(objetoB).length) return false;
+  for (const clave of clavesA) {
+    if (!Object.prototype.hasOwnProperty.call(objetoB, clave)) return false;
+    if (!igualValor(objetoA[clave], objetoB[clave])) return false;
+  }
+  return true;
+}
+
+/**
+ * Compara dos mapas de valores por clave.
+ *
+ * La referencia del mapa cambia aunque no cambie ningún valor (el store hace
+ * `{ ...state.collections }` al aplicar cambios de nodos), así que la igualdad
+ * de referencia del mapa no alcanza. Los valores, en cambio, sí son inmutables:
+ * si la referencia coincide no hay nada que comparar.
+ */
+function mismosValores(
+  anterior: Record<string, unknown>,
+  siguiente: Record<string, unknown>
+): boolean {
+  if (anterior === siguiente) return true;
+  const claves = Object.keys(anterior);
+  if (claves.length !== Object.keys(siguiente).length) return false;
+  for (const clave of claves) {
+    if (!Object.prototype.hasOwnProperty.call(siguiente, clave)) return false;
+    if (!igualValor(anterior[clave], siguiente[clave])) return false;
+  }
+  return true;
+}
+
+/**
  * Compara dos escenas para sacar el delta.
  *
  * El store ya expone `applyNodeChanges`, pero no emite el delta: solo cambia el
  * mapa. Esta función lo deriva comparando contra el estado anterior, que es lo
  * que se necesita para empujar al doc.
+ *
+ * La primera pasada es por identidad: el store reemplaza el objeto del nodo
+ * cuando cambia (`parseUpdatedNode`) y conserva la referencia del resto, así
+ * que un arrastre de un solo nodo cuesta O(N) comparaciones de puntero y no
+ * O(N·campos) comparaciones de valores.
  */
 export function diffEscena(
   anterior: EstadoEscena,
@@ -182,7 +411,8 @@ export function diffEscena(
   const previos = anterior.nodes as Record<string, Record<string, unknown>>;
   const siguientes = siguiente.nodes as Record<string, Record<string, unknown>>;
 
-  for (const [id, nodo] of Object.entries(siguientes)) {
+  for (const id in siguientes) {
+    const nodo = siguientes[id];
     const previo = previos[id];
     if (!previo) {
       crear.push({
@@ -191,10 +421,14 @@ export function diffEscena(
       });
       continue;
     }
+    // Misma referencia: el store no tocó este nodo.
+    if (previo === nodo) continue;
+
     const cambios: Record<string, unknown> = {};
-    for (const [clave, valor] of Object.entries(nodo)) {
+    for (const clave of Object.keys(nodo)) {
+      const valor = nodo[clave];
       if (valor === undefined) continue;
-      if (JSON.stringify(previo[clave]) === JSON.stringify(valor)) continue;
+      if (igualValor(previo[clave], valor)) continue;
       cambios[clave] = valor;
     }
     if (Object.keys(cambios).length > 0) {
@@ -202,7 +436,7 @@ export function diffEscena(
     }
   }
 
-  for (const id of Object.keys(previos)) {
+  for (const id in previos) {
     if (!(id in siguientes)) borrar.push(id as AnyNodeId);
   }
 

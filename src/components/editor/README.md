@@ -83,29 +83,38 @@ runtime. `bootstrapRegistry()` corre una vez, antes de montar el editor.
 
 ## Cómo se persiste
 
-El paquete trae autosave propio con debounce de 1 s. `editor-shell.tsx` lo conecta:
+El documento vivo lo persiste el **gateway de sincronización** por WebSocket: el
+cliente manda updates binarios de Yjs y el gateway materializa el `Y.Doc` a JSONB
+con debounce. `documento_colaborativo` tiene un único escritor.
 
 ```
 use-auto-save.ts  ──onSave(scene)──►  editor-shell.tsx
-                                      envuelve en { version, scene, vista }
-                                      │
-                                      ▼
-                            use-project-store.guardar()
-                                      │
-                                      ▼
-                          PATCH /proyectos/:id  { esquemaJson }
-                                      │
-                                      ▼
-                            proyecto.esquema_json  (JSONB, Neon)
+                                      (no-op: solo estado local)
+
+use-sincronizacion.ts  ──sync:update──►  gateway  ──debounce──►
+                                      documento_colaborativo
 ```
 
-Dos detalles que importan:
+El guardado manual es el único camino HTTP que escribe el documento:
 
-- `onSave` se llama también en `pagehide` con `{ keepalive: true }`. Hay que
-  reenviar esa opción o se pierde la última edición.
+```
+editor-shell.tsx  ──documentoActual()──►  POST /proyectos/:id/versiones
+                                              │
+                                              ├── version (historial)
+                                              └── proyecto.esquema_json
+```
+
+Detalles que importan:
+
+- `onSave` ya no hace un request. El paquete lo sigue llamando para marcar su
+  estado local como guardado; la persistencia real va por el socket. Si el
+  socket está caído, el documento no se persiste y el navbar puede mostrar
+  “guardado” igual: el estado de error de sync sigue pendiente.
 - El paquete **bloquea** el guardado si la escena cae de más de 4 nodos a ≤4
   (`isSuspiciousNodeDrop`) y marca `error`. El navbar muestra ese estado, porque
   si no parece que guardar no funciona.
+- El guardado manual manda la escena que el usuario está viendo, no lo último
+  que alcanzó a persistir el gateway. Así la versión no queda atrás del debounce.
 
 ## Dependencia externa
 

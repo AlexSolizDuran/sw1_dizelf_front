@@ -8,6 +8,7 @@ import { PanelColaboradores } from "./panel-colaboradores";
 import { PanelVersiones } from "./panel-versiones";
 import { useEditor } from "@pascal-app/editor";
 import { useViewer } from "@pascal-app/viewer";
+import type { EstadoSync } from "@/hooks/use-sincronizacion";
 import s from "./editor.module.css";
 
 /** Tono del indicador de guardado, derivado del `SaveStatus` del paquete. */
@@ -18,6 +19,12 @@ const TEXTO_TONO: Record<TonoGuardado, string> = {
   working: "Guardando",
   saved: "Guardado",
   error: "Sin guardar",
+};
+
+const TEXTO_SYNC: Record<Exclude<EstadoSync, "listo">, string> = {
+  conectando: "Conectando…",
+  reconectando: "Reconectando…",
+  error: "Sin conexión",
 };
 
 interface Props {
@@ -33,8 +40,12 @@ interface Props {
   proyectoId: string;
   /** Rol del usuario en este proyecto: `CREADOR` o el permiso de la base. */
   miRol: string;
-  /** Se dispara tras restaurar una versión (avisa y limpia el autosave). */
+  /** Se dispara tras restaurar una versión (avisa que terminó). */
   onRestaurar: () => void;
+  /** Estado del canal de sync. Si falta, se asume `listo`. */
+  estadoSync?: EstadoSync;
+  /** Motivo del último error de sync, para el tooltip. */
+  mensajeSync?: string | null;
 }
 
 export function EditorNavbar({
@@ -48,6 +59,8 @@ export function EditorNavbar({
   proyectoId,
   miRol,
   onRestaurar,
+  estadoSync,
+  mensajeSync,
 }: Props) {
   const viewMode = useEditor((st) => st.viewMode);
   const mode = useEditor((st) => st.mode);
@@ -63,6 +76,21 @@ export function EditorNavbar({
   }, [setMode, setTool]);
 
   const [guardandoVersion, setGuardandoVersion] = useState(false);
+
+  const sincronizado = !estadoSync || estadoSync === "listo";
+  /**
+   * “Guardado” sale del estado local del paquete, que no sabe si el socket está
+   * caído. Si el servidor no confirmó la sincronización, el texto correcto es
+   * “Guardado local”: el trabajo existe en este navegador y nada más.
+   */
+  const textoGuardado =
+    !sincronizado && tonoGuardado === "saved"
+      ? "Guardado local"
+      : TEXTO_TONO[tonoGuardado];
+  const tituloGuardado =
+    !sincronizado && tonoGuardado === "saved"
+      ? "El servidor no confirmó la sincronización: los cambios están solo en este navegador."
+      : mensajeGuardado ?? undefined;
 
   const guardarVersion = useCallback(async () => {
     if (!onGuardarVersion || guardandoVersion) return;
@@ -95,6 +123,25 @@ export function EditorNavbar({
       <span className={s.projectName}>{nombreProyecto}</span>
 
       <div className="ml-auto flex items-center gap-2">
+        {/* Estado del canal de sync, para todos los roles: un LECTOR también
+            necesita saber si el plano está al día. */}
+        {estadoSync && estadoSync !== "listo" && (
+          <span
+            className={s.saveState}
+            data-tone={estadoSync === "error" ? "error" : "working"}
+            title={
+              mensajeSync ??
+              "Estado de la conexión en vivo con el servidor."
+            }
+          >
+            <span
+              className={s.saveDot}
+              data-tone={estadoSync === "error" ? "error" : "working"}
+            />
+            <span>{TEXTO_SYNC[estadoSync]}</span>
+          </span>
+        )}
+
         {soloLectura ? (
           <span
             className={s.saveState}
@@ -108,18 +155,18 @@ export function EditorNavbar({
             <div
               className={s.saveState}
               data-tone={tonoGuardado}
-              title={mensajeGuardado ?? undefined}
+              title={tituloGuardado}
             >
               <span className={s.saveDot} data-tone={tonoGuardado} />
-              <span>{TEXTO_TONO[tonoGuardado]}</span>
+              <span>{textoGuardado}</span>
             </div>
 
             {/*
-              Guardado manual. El autosave del paquete (1 s) escribe en el
-              documento vivo y no respalda nada: este botón es el único camino
-              que crea una fila en `version` y consolida `proyecto.esquema_json`.
-              Por eso no es un detalle: sin pulsarlo, el trabajo no está guardado
-              en el sentido de "puedo cerrar y volver".
+              Guardado manual. El documento vivo lo persiste el gateway, pero
+              eso no respalda nada: este botón es el único camino que crea una
+              fila en `version` y consolida `proyecto.esquema_json`. Por eso no
+              es un detalle: sin pulsarlo, el trabajo no está guardado en el
+              sentido de "puedo cerrar y volver".
             */}
             <button
               aria-label="Guardar una versión del plano"

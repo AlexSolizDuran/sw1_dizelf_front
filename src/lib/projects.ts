@@ -1,9 +1,9 @@
 import { apiClient } from "@/lib/api";
 import type {
-  ActualizarProyectoInput,
   AgregarColaboradorInput,
   Colaborador,
   CrearProyectoInput,
+  DocumentoProyecto,
   Proyecto,
   ProyectosPaginados,
   Version,
@@ -37,27 +37,26 @@ export async function apiObtenerProyecto(id: string): Promise<Proyecto> {
   return apiClient<Proyecto>(`/proyectos/${id}`);
 }
 
-/**
- * Guarda el documento del proyecto.
- *
- * `keepalive` lo usa el paquete editor en el flush de salida: sin él, el
- * navegador cancela el fetch al descargar la página y se pierde la última
- * edición. `apiClient` lo propaga porque hace `...rest` hacia `fetch`.
- */
-export async function apiGuardarProyecto(
-  id: string,
-  input: ActualizarProyectoInput,
-  opciones: { keepalive?: boolean } = {}
-): Promise<Proyecto> {
-  return apiClient<Proyecto>(`/proyectos/${id}`, {
-    method: "PATCH",
-    body: JSON.stringify(input),
-    keepalive: opciones.keepalive,
-  });
-}
-
 export async function apiEliminarProyecto(id: string): Promise<{ message: string }> {
   return apiClient<{ message: string }>(`/proyectos/${id}`, { method: "DELETE" });
+}
+
+/**
+ * Guardado manual: consolida.
+ *
+ * A diferencia del autosave, este es el único camino que crea una fila en
+ * `version` y actualiza `proyecto.esquema_json`. Se manda el documento que el
+ * usuario está viendo para que la versión no dependa del debounce del gateway.
+ */
+export async function apiGuardarVersion(
+  id: string,
+  documento: DocumentoProyecto,
+  nombre?: string
+): Promise<Version> {
+  return apiClient<Version>(`/proyectos/${id}/versiones`, {
+    method: "POST",
+    body: JSON.stringify({ nombre, esquemaJson: documento }),
+  });
 }
 
 export async function apiListarColaboradores(
@@ -97,23 +96,6 @@ export async function apiActualizarColaborador(
     `/proyectos/${id}/colaboradores/${usuarioId}`,
     { method: "PATCH", body: JSON.stringify({ rol }) }
   );
-}
-
-/**
- * Guardado manual: consolida.
- *
- * A diferencia del autosave, este es el único camino que crea una fila en
- * `version` y actualiza `proyecto.esquema_json`. Lo que se editó entre dos
- * guardados manuales vive solo en el documento vivo.
- */
-export async function apiGuardarVersion(
-  id: string,
-  nombre?: string
-): Promise<Version> {
-  return apiClient<Version>(`/proyectos/${id}/versiones`, {
-    method: "POST",
-    body: JSON.stringify(nombre ? { nombre } : {}),
-  });
 }
 
 /** Historial de guardados, del más nuevo al más viejo. */

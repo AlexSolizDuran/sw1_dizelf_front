@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { Editor, type SceneGraph, useEditor } from "@pascal-app/editor";
 import { useScene } from "@pascal-app/core";
 import { useProjectStore } from "@/stores/use-project-store";
+import type { DocumentoProyecto } from "@/types/proyecto";
 import { BuildTab } from "./build-tab";
 import { EditorNavbar, type TonoGuardado } from "./editor-navbar";
 import { EstructuraTab } from "./estructura-tab";
@@ -67,12 +68,12 @@ interface Props {
 }
 
 export function EditorShell({ proyectoId, nombreProyecto }: Props) {
-  const guardar = useProjectStore((st) => st.guardar);
   const guardarVersion = useProjectStore((st) => st.guardarVersion);
   const proyecto = useProjectStore((st) => st.proyecto);
 
   useDeleteOnClick();
-  useSincronizacion(proyectoId, proyecto?.puedeEditar !== false);
+  // LECTOR incluido: el plano se ve en vivo, pero el hook no lo deja escribir.
+  const sync = useSincronizacion(proyectoId, proyecto?.puedeEditar === true);
 
   const [registroListo, setRegistroListo] = useState(false);
   const [escenaCargando, setEscenaCargando] = useState(true);
@@ -124,23 +125,34 @@ export function EditorShell({ proyectoId, nombreProyecto }: Props) {
     return documento?.scene ?? createDefaultScene();
   }, []);
 
-  const onSave = useCallback(
-    async (scene: SceneGraph, opciones?: { keepalive?: boolean }) => {
-      // Un LECTOR no escribe: el backend rechaza el PATCH con 403 y, sin este
-      // corte, el editor intentaría guardar cada segundo para que el navbar
-      // quedara parpadeando en rojo.
-      if (useProjectStore.getState().proyecto?.puedeEditar === false) return;
-      await guardar(
-        {
-          version: 1,
-          scene,
-          vista: useEditor.getState().viewMode === "3d" ? "3d" : "2d",
-        },
-        opciones
-      );
-    },
-    [guardar]
-  );
+  /**
+   * Documento actual para el guardado manual. Se arma desde `useScene` para
+   * incluir colecciones, materiales y plugins, que también forman parte del
+   * documento aunque no sean nodos.
+   */
+  const documentoActual = useCallback((): DocumentoProyecto => {
+    const { nodes, rootNodeIds, collections, materials, installedPlugins } =
+      useScene.getState();
+
+    return {
+      version: 1,
+      scene: {
+        nodes,
+        rootNodeIds,
+        collections,
+        materials,
+        installedPlugins,
+      } as SceneGraph,
+      vista: useEditor.getState().viewMode === "3d" ? "3d" : "2d",
+    };
+  }, []);
+
+  /**
+   * El autosave del paquete ya no escribe el documento: el gateway lo persiste
+   * por el socket. El callback queda para que el paquete marque su estado local
+   * como guardado; no hay request.
+   */
+  const onSave = useCallback(async () => {}, []);
 
   const onSaveStatusChange = useCallback((estado: string) => {
     // El paquete bloquea el guardado si la escena cae de más de 4 nodos a 4 o
@@ -230,10 +242,12 @@ export function EditorShell({ proyectoId, nombreProyecto }: Props) {
           layoutVersion="v2"
           navbarSlot={
             <EditorNavbar
+              estadoSync={sync.estado}
               mensajeGuardado={aviso}
+              mensajeSync={sync.mensaje}
               nombreProyecto={nombreProyecto}
               onGuardarVersion={async (nombre) => {
-                const ok = await guardarVersion(nombre);
+                const ok = await guardarVersion(documentoActual(), nombre);
                 if (ok) {
                   setTono("saved");
                   setAviso("Versión guardada: se puede volver a este punto.");
@@ -245,9 +259,7 @@ export function EditorShell({ proyectoId, nombreProyecto }: Props) {
               onRestaurar={() => {
                 // Sin recarga: el backend re-siembra el doc del gateway y
                 // difunde `sync:inicial`, que reemplaza la escena en vivo (ver
-                // use-sincronizacion). Solo se tira el autosave encolado, para
-                // que una escena vieja en espera no pise lo restaurado.
-                useProjectStore.getState().descartarGuardadoPendiente();
+                // use-sincronizacion).
                 setTono("saved");
                 setAviso("Versión restaurada.");
               }}
@@ -266,6 +278,21 @@ export function EditorShell({ proyectoId, nombreProyecto }: Props) {
           projectId={proyectoId}
           sidebarTabs={sidebarTabs as never}
         />
+      )}
+
+      {/* Error definitivo de sync (sesión, acceso o expulsión): reconectar no
+          sirve, así que se avisa sin bloquear el resto de la UI. */}
+      {sync.fatal && (
+        <div
+          className="fixed left-1/2 top-16 z-50 max-w-md -translate-x-1/2 rounded-md border border-red-300 bg-red-50 px-4 py-2 text-center text-sm text-red-800 shadow-lg"
+          role="alert"
+        >
+          <p className="font-medium">Se cerró la sincronización</p>
+          <p className="mt-1">
+            {sync.mensaje ?? "El servidor cerró la conexión."} Volvé a abrir el
+            proyecto para continuar.
+          </p>
+        </div>
       )}
 
       {/* Los menús van como hermanos del `<Editor>`, no en `stageOverlay`.

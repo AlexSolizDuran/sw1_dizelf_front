@@ -24,7 +24,7 @@ import s from "./editor.module.css";
  * seguía con la escena vieja y la volvía a pisar. Ahora el backend re-siembra
  * ese doc y difunde `sync:inicial`, y el cliente lo aplica con `setScene`
  * (reemplazo total). La escena en vivo se actualiza sola; `alRestaurar` solo
- * avisa y descarta el autosave encolado.
+ * avisa que la restauración terminó.
  *
  * RENOMBRAR Y ELIMINAR
  * --------------------
@@ -69,7 +69,7 @@ export function PanelVersiones({
     setError(null);
     try {
       await apiRestaurarVersion(proyectoId, version.id);
-      // Recarga completa: ver la nota del componente.
+      // El gateway re-siembra el doc y difunde `sync:inicial`.
       alRestaurar();
     } catch (e) {
       setError(e instanceof Error ? e.message : "No se pudo restaurar.");

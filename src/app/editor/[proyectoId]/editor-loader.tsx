@@ -24,11 +24,11 @@ export function EditorLoader({ proyectoId }: { proyectoId: string }) {
   /**
    * Error de apertura, en estado local y no leído del store.
    *
-   * `useProjectStore.error` es compartido con `guardar`, y el autosave escribe
-   * ahí cada vez que un PATCH falla. Suscribirse a ese error hacía que un fallo
-   * de red al guardar —algo recuperable, y del que el navbar ya informa—
-   * expulsara al usuario del editor y lo mandara a la lista de proyectos con
-   * el plano sin guardar.
+   * `useProjectStore.error` es compartido con `guardarVersion`, y el guardado
+   * manual escribe ahí si falla. Suscribirse a ese error hacía que un fallo de
+   * red al guardar —algo recuperable, y del que el navbar ya informa— expulsara
+   * al usuario del editor y lo mandara a la lista de proyectos con el plano sin
+   * guardar.
    */
   const [errorApertura, setErrorApertura] = useState<string | null>(null);
 
@@ -41,6 +41,8 @@ export function EditorLoader({ proyectoId }: { proyectoId: string }) {
   useEffect(() => {
     if (!isAuthenticated) return;
     let vivo = true;
+    setCargando(true);
+    setErrorApertura(null);
     void cargar(proyectoId).finally(() => {
       if (!vivo) return;
       // `cargar` deja el motivo en el store justo antes de resolver.

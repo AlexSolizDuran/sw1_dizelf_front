@@ -2,7 +2,6 @@
 
 import { create } from "zustand";
 import {
-  apiGuardarProyecto,
   apiGuardarVersion,
   apiObtenerProyecto,
   apiListarVersiones,
@@ -25,46 +24,46 @@ interface ProjectState {
   versiones: Version[];
 
   cargar: (id: string) => Promise<DocumentoProyecto | null>;
-  guardar: (
-    documento: DocumentoProyecto,
-    opciones?: { keepalive?: boolean }
-  ) => Promise<void>;
 
-  /** Guardado manual: consolida y crea la fila en `version`. */
-  guardarVersion: (nombre?: string) => Promise<boolean>;
+  /**
+   * Guardado manual: consolida y crea la fila en `version`.
+   *
+   * Recibe el documento que el usuario está viendo. El documento vivo lo
+   * persiste el gateway de sync; acá no se manda al autosave HTTP.
+   */
+  guardarVersion: (
+    documento: DocumentoProyecto,
+    nombre?: string
+  ) => Promise<boolean>;
   cargarVersiones: () => Promise<void>;
 
   /**
-   * Descarta el autosave encolado. Se usa al restaurar una versión: si había
-   * una escena vieja esperando para guardarse, mandarla pisaría lo restaurado.
+   * Aplica en vivo un cambio de permiso del servidor.
+   *
+   * Actualiza solo los dos campos que cambian con el rol. Evita recargar el
+   * proyecto entero: el documento vivo lo sigue gobernando el gateway.
    */
-  descartarGuardadoPendiente: () => void;
+  actualizarPermiso: (rol: string, puedeEditar: boolean) => void;
 
   limpiar: () => void;
 }
 
 /**
- * Guardado en vuelo. Vive fuera del estado de zustand a propósito: es un
- * detalle de la máquina de guardado, no algo que la UI tenga que observar ni
- * que dispare renders.
+ * Sube cada vez que se empieza a cargar o se limpia el store. Una respuesta de
+ * `cargar` solo puede escribir si su generación sigue siendo la actual.
  */
-let pendiente: {
-  documento: DocumentoProyecto;
-  keepalive: boolean;
-} | null = null;
-
-let guardandoAhora = false;
+let generacion = 0;
 
 /**
  * Estado del proyecto abierto en el editor.
  *
  * El store NO guarda la escena enmutable: esa la posee el store interno de
  * `@pascal-app/core` y cambia en cada edición. Acá vive solo el documento que
- * se cargó y se va a guardar, más los metadatos.
+ * se cargó, más los metadatos.
  *
- * Tras guardar no se reemplaza `esquemaJson` por el que devuelve el backend:
- * el PATCH eco devuelve el documento entero y guardarlo dispararía un render
- * por cada guardado. Los metadatos sí se refrescan.
+ * El documento vivo lo persiste el gateway de sync por WebSocket; este store ya
+ * no hace PATCH del documento. El único guardado HTTP que queda es el manual,
+ * que manda la escena actual para consolidar una versión.
  */
 export const useProjectStore = create<ProjectState>((set, get) => ({
   proyecto: null,
@@ -75,9 +74,16 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
   error: null,
 
   cargar: async (id) => {
+    const miGeneracion = ++generacion;
+
     set({ cargando: true, error: null });
     try {
       const proyecto = await apiObtenerProyecto(id);
+
+      // Si mientras esperaba se cargó otro proyecto (o se limpió), esta
+      // respuesta ya no vale: no pisar el store.
+      if (miGeneracion !== generacion) return null;
+
       const documento = leerDocumento(proyecto.esquemaJson);
       // `origen` viene del backend: dice de qué tabla salió `esquemaJson`. No
       // lo consulta el front porque no hay dos endpoints, sino una decisión que
@@ -85,6 +91,8 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
       set({ proyecto, documento, versiones: [], cargando: false });
       return documento;
     } catch (e) {
+      if (miGeneracion !== generacion) return null;
+
       const mensaje =
         e instanceof Error ? e.message : "No se pudo cargar el proyecto";
       set({ error: mensaje, cargando: false, proyecto: null, documento: null });
@@ -93,81 +101,13 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
   },
 
   /**
-   * Encola en vez de descartar.
-   *
-   * Antes: si había un PATCH en vuelo, el siguiente se tiraba y el documento
-   * se perdía sin error visible — el autosave del paquete dispara cada segundo,
-   * así que bastaba con que el anterior tardara más de eso para que la última
-   * edición no llegara nunca al backend.
-   *
-   * Ahora solo se conserva **el último** documento encolado: los intermedios
-   * están obsoletos para cuando vuelve el PATCH, y mandarlos todos sería
-   * writes inútiles contra una columna que se sobreescribe entera.
-   */
-  guardar: async (documento, opciones) => {
-    if (guardandoAhora) {
-      pendiente = { documento, keepalive: opciones?.keepalive ?? false };
-      return;
-    }
-
-    guardandoAhora = true;
-    set({ guardando: true });
-
-    try {
-      while (true) {
-        const { proyecto } = get();
-        if (!proyecto) throw new Error("No hay un proyecto abierto");
-
-        const enviado = pendiente?.documento ?? documento;
-        const keepalive = pendiente?.keepalive ?? opciones?.keepalive;
-        pendiente = null;
-
-        const actualizado = await apiGuardarProyecto(
-          proyecto.id,
-          { esquemaJson: enviado as unknown as Record<string, unknown> },
-          { keepalive }
-        );
-
-        set({
-          proyecto: {
-            ...actualizado,
-            // Se conserva la referencia previa: ver nota del store.
-            esquemaJson: proyecto.esquemaJson,
-          },
-        });
-
-        // Salir de inmediato si no se encoló nada durante este write.
-        if (!pendiente) break;
-      }
-
-      set({ guardando: false, error: null });
-    } catch (e) {
-      set({
-        guardando: false,
-        error: e instanceof Error ? e.message : "No se pudo guardar",
-      });
-    } finally {
-      guardandoAhora = false;
-    }
-
-    // Un keepalive encolado mientras corría el write normal ya no se manda con
-    // la página cerrándose, así que se descarta explícitamente: reenviarlo
-    // igual sería una petición que el navegador cancela igual.
-    pendiente = null;
-  },
-
-  /**
    * Guardado manual: consolida.
    *
    * Es el único camino que crea una fila en `version` y actualiza
-   * `proyecto.esquema_json`. El autosave de arriba escribe en el documento
-   * vivo, así que lo editado desde el último guardado manual solo vive ahí.
-   *
-   * Se espera a que termine cualquier write en vuelo: consolidar mientras hay
-   * un PATCH a medias dejaría el proyecto con una versión anterior a la última
-   * edición, que es justo lo que el usuario cree haber guardado.
+   * `proyecto.esquema_json`. Se manda la escena que el usuario está viendo para
+   * que la versión no dependa de lo último que alcanzó a persistir el gateway.
    */
-  guardarVersion: async (nombre) => {
+  guardarVersion: async (documento, nombre) => {
     const proyecto = get().proyecto;
     if (!proyecto) {
       set({ error: "No hay un proyecto abierto" });
@@ -180,10 +120,7 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
 
     set({ guardando: true });
     try {
-      while (guardandoAhora) {
-        await new Promise((r) => setTimeout(r, 120));
-      }
-      await apiGuardarVersion(proyecto.id, nombre);
+      await apiGuardarVersion(proyecto.id, documento, nombre);
       await get().cargarVersiones();
       set({ guardando: false, error: null });
       return true;
@@ -206,19 +143,25 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
     }
   },
 
-  descartarGuardadoPendiente: () => {
-    // Solo se tira lo ENCOLADO. Si hay un PATCH en vuelo no se puede cancelar;
-    // ese caso lo corrige el gateway, que ya re-sembró su doc con lo restaurado
-    // y lo vuelve a persistir en el siguiente debounce o al desconectar.
-    pendiente = null;
+  actualizarPermiso: (rol, puedeEditar) => {
+    const proyecto = get().proyecto;
+    if (!proyecto) return;
+
+    // Si no cambió nada, no se escribe: esto llega por socket y puede repetirse
+    // (dos pestañas del mismo usuario, reconexiones).
+    if (proyecto.miRol === rol && proyecto.puedeEditar === puedeEditar) return;
+
+    set({ proyecto: { ...proyecto, miRol: rol, puedeEditar } });
   },
 
   limpiar: () => {
-    pendiente = null;
+    generacion += 1; // invalida respuestas de carga en vuelo
+
     set({
       proyecto: null,
       documento: null,
       versiones: [],
+      cargando: false,
       error: null,
       guardando: false,
     });

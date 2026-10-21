@@ -50,6 +50,12 @@ export function usePresencia(proyectoId: string | null): EstadoPresencia {
   const [conectados, setConectados] = useState<Presente[]>([]);
   const [reconectando, setReconectando] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  /**
+   * Se usa como dependencia del efecto que reporta: al pasar a `true` (primer
+   * connect o reconexión) hay que reenviar el estado actual. Antes el efecto
+   * corría con el socket todavía cerrado y no volvía a ejecutarse.
+   */
+  const [conectado, setConectado] = useState(false);
   const socketRef = useRef<Socket | null>(null);
 
   // Se leen dentro del efecto y se mandan por el socket: no hace falta que este
@@ -72,6 +78,7 @@ export function usePresencia(proyectoId: string | null): EstadoPresencia {
     socketRef.current = socket;
 
     socket.on("connect", () => {
+      setConectado(true);
       setReconectando(false);
       setError(null);
     });
@@ -87,13 +94,41 @@ export function usePresencia(proyectoId: string | null): EstadoPresencia {
       });
     });
 
-    socket.on("presencia:error", (payload: { mensaje?: string }) => {
-      setError(payload?.mensaje ?? "No se pudo entrar a la sesión compartida.");
-    });
+    socket.on(
+      "presencia:error",
+      (payload: { codigo?: string; mensaje?: string }) => {
+        setError(
+          payload?.mensaje ?? "No se pudo entrar a la sesión compartida."
+        );
+
+        // Expulsado o sin acceso: el servidor ya desconecta y no tiene sentido
+        // que socket.io reintente en bucle.
+        if (
+          payload?.codigo === "EXPULSADO" ||
+          payload?.codigo === "SIN_ACCESO" ||
+          payload?.codigo === "SIN_SESION"
+        ) {
+          socket.disconnect();
+        }
+      }
+    );
 
     socket.io.on("reconnect_attempt", () => setReconectando(true));
-    socket.on("disconnect", () => setReconectando(true));
-    socket.on("connect_error", () => setReconectando(true));
+    socket.on("disconnect", (motivo: string) => {
+      setConectado(false);
+      // El servidor no reconecta por su cuenta, y nosotros tampoco queremos
+      // hacerlo tras una expulsión: dejaría la UI en “reconectando” para
+      // siempre.
+      if (motivo === "io server disconnect" || motivo === "io client disconnect") {
+        setReconectando(false);
+        return;
+      }
+      setReconectando(true);
+    });
+    socket.on("connect_error", () => {
+      setConectado(false);
+      setReconectando(true);
+    });
 
     return () => {
       socket.removeAllListeners();
@@ -103,12 +138,15 @@ export function usePresencia(proyectoId: string | null): EstadoPresencia {
   }, [proyectoId]);
 
   // Throttle: la selección cambia en cada clic, pero 4 Hz alcanza para que el
-  // remoto vea el movimiento y evita inundar el canal.
+  // remoto vea el movimiento y evita inundar el canal. `conectado` está en las
+  // dependencias para reenviar el estado al conectar y al reconectar.
   useEffect(() => {
     const socket = socketRef.current;
-    if (!socket?.connected) return;
+    if (!socket) return;
 
     const timer = setTimeout(() => {
+      // Puede haberse desconectado entre el render y el timeout.
+      if (!socket.connected) return;
       socket.emit("presencia:actualizar", {
         nodoSeleccionado: seleccion.selectedIds?.[0] ?? null,
         nivelId: seleccion.levelId ?? null,
@@ -119,7 +157,14 @@ export function usePresencia(proyectoId: string | null): EstadoPresencia {
     }, 250);
 
     return () => clearTimeout(timer);
-  }, [modo, vista, seleccion.selectedIds, seleccion.levelId, seleccion.buildingId]);
+  }, [
+    conectado,
+    modo,
+    vista,
+    seleccion.selectedIds,
+    seleccion.levelId,
+    seleccion.buildingId,
+  ]);
 
   return { conectados, reconectando, error };
 }

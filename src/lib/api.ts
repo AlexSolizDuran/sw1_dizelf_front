@@ -5,10 +5,10 @@ const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
 /**
  * Tope por petición.
  *
- * Holgado a propósito: un `PATCH /proyectos/:id` manda la escena completa y
- * con un plano grande puede tardar varios segundos. Sin este techo, un backend
+ * Holgado a propósito: `POST /proyectos/:id/versiones` manda la escena completa
+ * y con un plano grande puede tardar varios segundos. Sin este techo, un backend
  * colgado dejaba el spinner de carga y de guardado girando para siempre, sin
- * distinguishable de "está trabajando".
+ * distinguirse de "está trabajando".
  */
 const TIMEOUT_MS = 15_000;
 
