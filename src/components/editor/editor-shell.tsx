@@ -234,7 +234,17 @@ export function EditorShell({ proyectoId, nombreProyecto }: Props) {
 
   return (
     <div
-      className={tema === "oscuro" ? s.shellDark : s.shell}
+      /*
+       * `.shell` va SIEMPRE, y `.shellDark` se suma encima cuando toca.
+       *
+       * Casi todos los ajustes sobre los internos del paquete (ocultar sus
+       * menús duplicados, radios, tipografía, reduced-motion) están scopeados
+       * a `.shell`. Si en oscuro se pone solo `.shellDark`, esas reglas dejan
+       * de aplicar y reaparecen el ActionMenu y el selector de pisos del
+       * paquete junto a los propios. Los tokens oscuros ganan igual porque
+       * `.shellDark` se declara después de `.shell` en el CSS.
+       */
+      className={`${s.shell}${tema === "oscuro" ? ` ${s.shellDark}` : ""}`}
       style={{ position: "fixed", inset: 0, overflow: "hidden" }}
     >
       {registroListo && (
