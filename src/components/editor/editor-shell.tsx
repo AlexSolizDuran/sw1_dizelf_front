@@ -2,7 +2,13 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Editor, type SceneGraph, useEditor } from "@pascal-app/editor";
-import { useProjectStore } from "@/stores/use-project-store";import { BuildTab } from "./build-tab";
+import { useScene } from "@pascal-app/core";
+import { useProjectStore } from "@/stores/use-project-store";
+import { useAuthStore } from "@/stores/use-auth-store";
+import { AssistantPanel } from "@/components/ia/asistente-panel";
+import { HelpAssistant } from "@/components/ayuda/help-assistant";
+import type { DocumentoProyecto } from "@/types/proyecto";
+import { BuildTab } from "./build-tab";
 import { EditorNavbar, type TonoGuardado } from "./editor-navbar";
 import { EstructuraTab } from "./estructura-tab";
 import { LevelBootstrap } from "./level-bootstrap";
@@ -11,8 +17,10 @@ import { MueblesTab } from "./muebles-tab";
 import { BottomBar } from "./menus/bottom-bar";
 import { LevelSelector } from "./menus/level-selector";
 import { PropertiesPanel } from "./properties-panel";
+import { PanelPresupuesto } from "./presupuesto/panel-presupuesto";
 import { bootstrapRegistry } from "./icons/registry-patch";
 import { useDeleteOnClick } from "@/hooks/use-delete-on-click";
+import { useSincronizacion } from "@/hooks/use-sincronizacion";
 import { Braces, Hammer, Paintbrush, Sofa } from "./icons/glyphs";
 import s from "./editor.module.css";
 
@@ -64,9 +72,13 @@ interface Props {
 }
 
 export function EditorShell({ proyectoId, nombreProyecto }: Props) {
-  const guardar = useProjectStore((st) => st.guardar);
+  const guardarVersion = useProjectStore((st) => st.guardarVersion);
+  const proyecto = useProjectStore((st) => st.proyecto);
+  const usuarioId = useAuthStore((st) => st.user?.id ?? null);
 
   useDeleteOnClick();
+  // LECTOR incluido: el plano se ve en vivo, pero el hook no lo deja escribir.
+  const sync = useSincronizacion(proyectoId, proyecto?.puedeEditar === true);
 
   const [registroListo, setRegistroListo] = useState(false);
   const [escenaCargando, setEscenaCargando] = useState(true);
@@ -74,6 +86,21 @@ export function EditorShell({ proyectoId, nombreProyecto }: Props) {
   const [tema, setTema] = useState<"claro" | "oscuro">("claro");
   const [tono, setTono] = useState<TonoGuardado>("idle");
   const [aviso, setAviso] = useState<string | null>(null);
+  const [presupuestoAbierto, setPresupuestoAbierto] = useState(false);
+
+  const soloLectura = proyecto?.puedeEditar === false;
+
+  /**
+   * Un LECTOR entra en modo lectura.
+   *
+   * `setReadOnly` vive en el store de escena del paquete, no en un estado de
+   * React: sin él, las herramientas siguen activas y el usuario arma
+   * un plano que el backend le va a rechazar con 403 en cada guardado.
+   */
+  useEffect(() => {
+    useScene.getState().setReadOnly(soloLectura);
+    return () => useScene.getState().setReadOnly(false);
+  }, [soloLectura]);
 
   useEffect(() => {
     const guardado = localStorage.getItem(TEMA_KEY);
@@ -104,19 +131,34 @@ export function EditorShell({ proyectoId, nombreProyecto }: Props) {
     return documento?.scene ?? createDefaultScene();
   }, []);
 
-  const onSave = useCallback(
-    async (scene: SceneGraph, opciones?: { keepalive?: boolean }) => {
-      await guardar(
-        {
-          version: 1,
-          scene,
-          vista: useEditor.getState().viewMode === "3d" ? "3d" : "2d",
-        },
-        opciones
-      );
-    },
-    [guardar]
-  );
+  /**
+   * Documento actual para el guardado manual. Se arma desde `useScene` para
+   * incluir colecciones, materiales y plugins, que también forman parte del
+   * documento aunque no sean nodos.
+   */
+  const documentoActual = useCallback((): DocumentoProyecto => {
+    const { nodes, rootNodeIds, collections, materials, installedPlugins } =
+      useScene.getState();
+
+    return {
+      version: 1,
+      scene: {
+        nodes,
+        rootNodeIds,
+        collections,
+        materials,
+        installedPlugins,
+      } as SceneGraph,
+      vista: useEditor.getState().viewMode === "3d" ? "3d" : "2d",
+    };
+  }, []);
+
+  /**
+   * El autosave del paquete ya no escribe el documento: el gateway lo persiste
+   * por el socket. El callback queda para que el paquete marque su estado local
+   * como guardado; no hay request.
+   */
+  const onSave = useCallback(async () => {}, []);
 
   const onSaveStatusChange = useCallback((estado: string) => {
     // El paquete bloquea el guardado si la escena cae de más de 4 nodos a 4 o
@@ -198,7 +240,17 @@ export function EditorShell({ proyectoId, nombreProyecto }: Props) {
 
   return (
     <div
-      className={tema === "oscuro" ? s.shellDark : s.shell}
+      /*
+       * `.shell` va SIEMPRE, y `.shellDark` se suma encima cuando toca.
+       *
+       * Casi todos los ajustes sobre los internos del paquete (ocultar sus
+       * menús duplicados, radios, tipografía, reduced-motion) están scopeados
+       * a `.shell`. Si en oscuro se pone solo `.shellDark`, esas reglas dejan
+       * de aplicar y reaparecen el ActionMenu y el selector de pisos del
+       * paquete junto a los propios. Los tokens oscuros ganan igual porque
+       * `.shellDark` se declara después de `.shell` en el CSS.
+       */
+      className={`${s.shell}${tema === "oscuro" ? ` ${s.shellDark}` : ""}`}
       style={{ position: "fixed", inset: 0, overflow: "hidden" }}
     >
       {registroListo && (
@@ -206,9 +258,32 @@ export function EditorShell({ proyectoId, nombreProyecto }: Props) {
           layoutVersion="v2"
           navbarSlot={
             <EditorNavbar
+              estadoSync={sync.estado}
               mensajeGuardado={aviso}
+              mensajeSync={sync.mensaje}
               nombreProyecto={nombreProyecto}
+              onGuardarVersion={async (nombre) => {
+                const ok = await guardarVersion(documentoActual(), nombre);
+                if (ok) {
+                  setTono("saved");
+                  setAviso("Versión guardada: se puede volver a este punto.");
+                } else {
+                  setTono("error");
+                  setAviso("No se pudo guardar la versión.");
+                }
+              }}
+              onAbrirPresupuesto={() => setPresupuestoAbierto(true)}
+              onRestaurar={() => {
+                // Sin recarga: el backend re-siembra el doc del gateway y
+                // difunde `sync:inicial`, que reemplaza la escena en vivo (ver
+                // use-sincronizacion).
+                setTono("saved");
+                setAviso("Versión restaurada.");
+              }}
               onToggleTema={toggleTema}
+              miRol={proyecto?.miRol ?? "CREADOR"}
+              proyectoId={proyectoId}
+              soloLectura={soloLectura}
               tema={tema}
               tonoGuardado={tono}
             />
@@ -220,6 +295,21 @@ export function EditorShell({ proyectoId, nombreProyecto }: Props) {
           projectId={proyectoId}
           sidebarTabs={sidebarTabs as never}
         />
+      )}
+
+      {/* Error definitivo de sync (sesión, acceso o expulsión): reconectar no
+          sirve, así que se avisa sin bloquear el resto de la UI. */}
+      {sync.fatal && (
+        <div
+          className="fixed left-1/2 top-16 z-50 max-w-md -translate-x-1/2 rounded-md border border-red-300 bg-red-50 px-4 py-2 text-center text-sm text-red-800 shadow-lg"
+          role="alert"
+        >
+          <p className="font-medium">Se cerró la sincronización</p>
+          <p className="mt-1">
+            {sync.mensaje ?? "El servidor cerró la conexión."} Volvé a abrir el
+            proyecto para continuar.
+          </p>
+        </div>
       )}
 
       {/* Los menús van como hermanos del `<Editor>`, no en `stageOverlay`.
@@ -235,6 +325,20 @@ export function EditorShell({ proyectoId, nombreProyecto }: Props) {
 
       <LevelBootstrap />
       <PropertiesPanel />
+      <AssistantPanel
+        puedeEditar={!soloLectura}
+        proyectoId={proyectoId}
+        usuarioId={usuarioId}
+      />
+      <HelpAssistant usuarioId={usuarioId} />
+      <PanelPresupuesto
+        abierto={presupuestoAbierto}
+        miRol={proyecto?.miRol ?? "CREADOR"}
+        nombreProyecto={nombreProyecto}
+        onCerrar={() => setPresupuestoAbierto(false)}
+        proyectoId={proyectoId}
+        puedeEditar={!soloLectura}
+      />
 
       {(cargando || error) && (
         <div className={s.boot}>

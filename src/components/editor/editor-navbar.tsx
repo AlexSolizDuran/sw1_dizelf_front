@@ -1,10 +1,23 @@
 "use client";
 
-import { useCallback } from "react";
+import { useCallback, useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, Box, Compass, Moon, Scan, Sun } from "lucide-react";
+import {
+  ArrowLeft,
+  Box,
+  Calculator,
+  Compass,
+  Moon,
+  Save,
+  Scan,
+  Sun,
+} from "lucide-react";
+import { IndicadorPresencia } from "./indicador-presencia";
+import { PanelColaboradores } from "./panel-colaboradores";
+import { PanelVersiones } from "./panel-versiones";
 import { useEditor } from "@pascal-app/editor";
 import { useViewer } from "@pascal-app/viewer";
+import type { EstadoSync } from "@/hooks/use-sincronizacion";
 import s from "./editor.module.css";
 
 /** Tono del indicador de guardado, derivado del `SaveStatus` del paquete. */
@@ -17,12 +30,33 @@ const TEXTO_TONO: Record<TonoGuardado, string> = {
   error: "Sin guardar",
 };
 
+const TEXTO_SYNC: Record<Exclude<EstadoSync, "listo">, string> = {
+  conectando: "Conectando…",
+  reconectando: "Reconectando…",
+  error: "Sin conexión",
+};
+
 interface Props {
   nombreProyecto: string;
   tema: "claro" | "oscuro";
   onToggleTema: () => void;
   tonoGuardado: TonoGuardado;
   mensajeGuardado?: string | null;
+  /** Con `true` el proyecto abierto es de solo lectura (permiso LECTOR). */
+  soloLectura?: boolean;
+  onGuardarVersion?: (nombre?: string) => void;
+  /** Abre el canal de presencia de este proyecto. */
+  proyectoId: string;
+  /** Rol del usuario en este proyecto: `CREADOR` o el permiso de la base. */
+  miRol: string;
+  /** Se dispara tras restaurar una versión (avisa que terminó). */
+  onRestaurar: () => void;
+  /** Abre el panel de presupuesto de materiales. */
+  onAbrirPresupuesto: () => void;
+  /** Estado del canal de sync. Si falta, se asume `listo`. */
+  estadoSync?: EstadoSync;
+  /** Motivo del último error de sync, para el tooltip. */
+  mensajeSync?: string | null;
 }
 
 export function EditorNavbar({
@@ -31,6 +65,14 @@ export function EditorNavbar({
   onToggleTema,
   tonoGuardado,
   mensajeGuardado,
+  soloLectura = false,
+  onGuardarVersion,
+  proyectoId,
+  miRol,
+  onRestaurar,
+  onAbrirPresupuesto,
+  estadoSync,
+  mensajeSync,
 }: Props) {
   const viewMode = useEditor((st) => st.viewMode);
   const mode = useEditor((st) => st.mode);
@@ -44,6 +86,37 @@ export function EditorNavbar({
     setMode("select");
     setTool(null);
   }, [setMode, setTool]);
+
+  const [guardandoVersion, setGuardandoVersion] = useState(false);
+
+  const sincronizado = !estadoSync || estadoSync === "listo";
+  /**
+   * “Guardado” sale del estado local del paquete, que no sabe si el socket está
+   * caído. Si el servidor no confirmó la sincronización, el texto correcto es
+   * “Guardado local”: el trabajo existe en este navegador y nada más.
+   */
+  const textoGuardado =
+    !sincronizado && tonoGuardado === "saved"
+      ? "Guardado local"
+      : TEXTO_TONO[tonoGuardado];
+  const tituloGuardado =
+    !sincronizado && tonoGuardado === "saved"
+      ? "El servidor no confirmó la sincronización: los cambios están solo en este navegador."
+      : mensajeGuardado ?? undefined;
+
+  const guardarVersion = useCallback(async () => {
+    if (!onGuardarVersion || guardandoVersion) return;
+    // El nombre es opcional: vacío guarda sin etiqueta, cancelar aborta.
+    const entrada = window.prompt("Nombre de la versión (opcional):", "");
+    if (entrada === null) return;
+    const nombre = entrada.trim() || undefined;
+    setGuardandoVersion(true);
+    try {
+      await onGuardarVersion(nombre);
+    } finally {
+      setGuardandoVersion(false);
+    }
+  }, [onGuardarVersion, guardandoVersion]);
 
   return (
     <div className={s.topbar}>
@@ -62,14 +135,89 @@ export function EditorNavbar({
       <span className={s.projectName}>{nombreProyecto}</span>
 
       <div className="ml-auto flex items-center gap-2">
-        <div
-          className={s.saveState}
-          data-tone={tonoGuardado}
-          title={mensajeGuardado ?? undefined}
+        {/* Estado del canal de sync, para todos los roles: un LECTOR también
+            necesita saber si el plano está al día. */}
+        {estadoSync && estadoSync !== "listo" && (
+          <span
+            className={s.saveState}
+            data-tone={estadoSync === "error" ? "error" : "working"}
+            title={
+              mensajeSync ??
+              "Estado de la conexión en vivo con el servidor."
+            }
+          >
+            <span
+              className={s.saveDot}
+              data-tone={estadoSync === "error" ? "error" : "working"}
+            />
+            <span>{TEXTO_SYNC[estadoSync]}</span>
+          </span>
+        )}
+
+        {soloLectura ? (
+          <span
+            className={s.saveState}
+            data-tone="idle"
+            title="Tu permiso en este proyecto es de solo lectura."
+          >
+            Solo lectura
+          </span>
+        ) : (
+          <>
+            <div
+              className={s.saveState}
+              data-tone={tonoGuardado}
+              title={tituloGuardado}
+            >
+              <span className={s.saveDot} data-tone={tonoGuardado} />
+              <span>{textoGuardado}</span>
+            </div>
+
+            {/*
+              Guardado manual. El documento vivo lo persiste el gateway, pero
+              eso no respalda nada: este botón es el único camino que crea una
+              fila en `version` y consolida `proyecto.esquema_json`. Por eso no
+              es un detalle: sin pulsarlo, el trabajo no está guardado en el
+              sentido de "puedo cerrar y volver".
+            */}
+            <button
+              aria-label="Guardar una versión del plano"
+              className={s.iconBtn}
+              disabled={guardandoVersion}
+              onClick={guardarVersion}
+              title="Guardar una versión del plano (crea un punto de restauración)"
+              type="button"
+            >
+              <Save className="h-3.5 w-3.5" />
+            </button>
+
+            <PanelVersiones
+              alRestaurar={onRestaurar}
+              puedeEditar
+              proyectoId={proyectoId}
+            />
+          </>
+        )}
+
+        {/*
+          Colaboradores y presentes son comunes a todos los roles: el panel
+          decide qué mostrar según `miRol`, y solo el creador puede invitar,
+          cambiar permisos o quitar gente.
+        */}
+        <PanelColaboradores miRol={miRol} proyectoId={proyectoId} />
+        <IndicadorPresencia proyectoId={proyectoId} />
+
+        {/* Presupuesto de materiales: disponible para todos los roles (un
+            LECTOR consulta el historial), la edición se valida en el panel. */}
+        <button
+          aria-label="Abrir el presupuesto de materiales"
+          className={s.iconBtn}
+          onClick={onAbrirPresupuesto}
+          title="Presupuesto de materiales"
+          type="button"
         >
-          <span className={s.saveDot} data-tone={tonoGuardado} />
-          <span>{TEXTO_TONO[tonoGuardado]}</span>
-        </div>
+          <Calculator className="h-3.5 w-3.5" />
+        </button>
 
         <div className={s.seg}>
           <button

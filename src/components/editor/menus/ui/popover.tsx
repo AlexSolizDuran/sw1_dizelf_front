@@ -72,10 +72,12 @@ export function PopoverBody({
       side="top"
       sideOffset={12}
     >
-      <div className={s.popoverHead}>
-        {Icon ? <Icon className="h-4 w-4 shrink-0" /> : null}
-        <span className={s.popoverTitle}>{titulo}</span>
-      </div>
+      <PopoverPrimitive.Title asChild>
+        <div className={s.popoverHead}>
+          {Icon ? <Icon className="h-4 w-4 shrink-0" /> : null}
+          <span className={s.popoverTitle}>{titulo}</span>
+        </div>
+      </PopoverPrimitive.Title>
       {children}
       <PopoverPrimitive.Arrow className={s.popoverArrow} />
     </PopoverPrimitive.Content>

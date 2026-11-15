@@ -11,7 +11,8 @@ import { useAuthStore } from "@/stores/use-auth-store";
 
 export function LoginCard() {
   const router = useRouter();
-  const { login, isLoading } = useAuthStore();
+  const login = useAuthStore((s) => s.login);
+  const isLoading = useAuthStore((s) => s.isLoading);
 
   const [identificador, setIdentificador] = useState("");
   const [password, setPassword] = useState("");
@@ -91,7 +92,7 @@ export function LoginCard() {
               <button
                 type="button"
                 onClick={() => alert("Función de recuperación disponible próximamente.")}
-                className="text-xs text-[#8C7B71] hover:text-[#8C432A] transition-colors"
+                className="text-xs text-[#6B5E55] hover:text-[#8C432A] transition-colors"
               >
                 ¿Olvidaste tu contraseña?
               </button>
@@ -115,7 +116,7 @@ export function LoginCard() {
           {/* Divisor */}
           <div className="relative my-2 flex items-center justify-center">
             <div className="w-full border-t border-[#E5DFD7]" />
-            <span className="absolute bg-[#FAF9F7] px-3 text-[11px] text-[#9A8D84] uppercase tracking-wider">
+            <span className="absolute bg-[#FAF9F7] px-3 text-[11px] text-[#6B5E55] uppercase tracking-wider">
               o continuar con
             </span>
           </div>

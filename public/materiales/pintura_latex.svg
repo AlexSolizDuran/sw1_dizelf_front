@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 120" role="img" aria-label="Balde de pintura látex con rodillo">
+  <rect width="160" height="120" fill="#f4f1ec"/>
+  <rect x="0" y="102" width="160" height="18" fill="#e6e0d6"/>
+  <path d="M52 44h56l-6 60H58z" fill="#cfd6da"/>
+  <path d="M52 44h56l-6 16H58z" fill="#e8edef"/>
+  <rect x="50" y="38" width="60" height="8" rx="3" fill="#9aa7ae"/>
+  <path d="M56 62h48l-4 40H60z" fill="#7d99b8" opacity="0.28"/>
+  <path d="M62 56c8 8 28 8 36 0" stroke="#9aa7ae" stroke-width="3" fill="none"/>
+  <rect x="112" y="34" width="26" height="10" rx="4" fill="#b9c2c8"/>
+  <rect x="122" y="44" width="6" height="40" rx="3" fill="#a98467"/>
+  <rect x="112" y="84" width="26" height="5" rx="2" fill="#8d6b52"/>
+</svg>

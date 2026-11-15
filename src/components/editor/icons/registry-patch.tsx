@@ -1,6 +1,5 @@
 "use client";
 
-import type { IconRef } from "@pascal-app/core";
 import { loadPlugin, nodeRegistry } from "@pascal-app/core";
 import { builtinPlugin } from "@pascal-app/nodes";
 import type { ComponentType, SVGProps } from "react";
@@ -43,16 +42,27 @@ function loaderPara(kind: string): () => Promise<{ default: ComponentType }> {
   return loader;
 }
 
-function parchearIcono(icono: IconRef): boolean {
-  return icono.kind === "url" || icono.kind === "iconify";
-}
-
 export function patchRegistryIcons(): number {
   let patched = 0;
   for (const [kind, def] of nodeRegistry.entries()) {
     const presentation = def?.presentation;
     if (!presentation?.icon) continue;
-    if (!KIND_ICON[kind] && !parchearIcono(presentation.icon)) continue;
+
+    /**
+     * Solo se parchea si hay un glifo de lucide que lo reemplace.
+     *
+     * La condición anterior era `if (!KIND_ICON[kind] && !parchearIcono(...))
+     * continue`, que sigue parcheando cuando el icono es `url` pero no hay
+     * glifo: el loader hacía `mapa[kind] ?? KIND_ICON[kind]` → `undefined` y
+     * `<undefined />` rompía el render de React con "Element type is invalid".
+     * No pasaba con los tipos built-in, que todos tienen entrada, pero cualquier
+     * nodo registrado por un plugin entraba por ese camino.
+     *
+     * Sin glifo se deja el icono que declara el paquete: si es una `.webp` que
+     * este proyecto no tiene, se ve el ícono roto en vez de romper la pantalla.
+     */
+    if (!KIND_ICON[kind]) continue;
+
     presentation.icon = { kind: "component", module: loaderPara(kind) };
     patched++;
   }

@@ -96,7 +96,7 @@ export function SoftwarePreview() {
         </div>
 
         {/* Pie de Página de la Maqueta */}
-        <div className="bg-[#FAF8F5] border-t border-[#ECE5DD] px-4 py-2 flex items-center justify-between text-[10px] text-[#A89C93]">
+        <div className="bg-[#FAF8F5] border-t border-[#ECE5DD] px-4 py-2 flex items-center justify-between text-[10px] text-[#6B5E55]">
           <span>Search...</span>
           <span>© 2026 NullSoft / DIZELF</span>
         </div>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import { nodeRegistry, useScene, type AnyNode, type AnyNodeId } from "@pascal-app/core";
 import { useViewer } from "@pascal-app/viewer";
 import { useEditor } from "@pascal-app/editor";
@@ -11,7 +11,6 @@ import {
   groupsForNode,
   optionsFor,
   patchFor,
-  rangeFor,
   readPath,
   type FieldGroup,
   type FieldSpec,
@@ -155,7 +154,7 @@ export function PropertiesPanel() {
   const Icon = iconForKind(node.type) ?? Box;
 
   return (
-    <aside className={s.props}>
+    <aside aria-label="Propiedades del elemento seleccionado" className={s.props}>
       <header className={s.propsHead}>
         <Icon className="h-[26px] w-[26px] shrink-0 opacity-85" />
         <div className="min-w-0 flex-1">
@@ -177,7 +176,7 @@ export function PropertiesPanel() {
         />
       </div>
 
-      <div className={s.propsBody}>
+      <div aria-label="Campos del elemento" className={s.propsBody} role="region" tabIndex={0}>
         <div className={s.propsCols}>
           <span>Parámetro</span>
           <span>Valor</span>
@@ -293,9 +292,19 @@ function Row({
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
+  const listId = useId();
 
   const shown = displayValue(node, field);
   const isReadOnly = field.kind === "metric" || !field.path;
+  const suggestions = field.suggestions ?? [];
+  const datalist =
+    suggestions.length > 0 ? (
+      <datalist id={listId}>
+        {suggestions.map((option) => (
+          <option key={option} value={option} />
+        ))}
+      </datalist>
+    ) : null;
 
   useEffect(() => {
     if (!editing) return;
@@ -304,7 +313,10 @@ function Row({
         ? String(Number(shown.toFixed(field.precision ?? 3)))
         : shown
     );
-    requestAnimationFrame(() => inputRef.current?.select());
+    // El frame se cancela al desmontar o al salir del modo edición: si no, el
+    // callback queda pendiente sobre un `inputRef` ya nulo.
+    const frame = requestAnimationFrame(() => inputRef.current?.select());
+    return () => cancelAnimationFrame(frame);
   }, [editing, shown, field.precision]);
 
   if (field.kind === "bool") {
@@ -366,9 +378,41 @@ function Row({
               type="color"
               value={/^#[0-9a-f]{6}$/i.test(raw) ? raw : "#ffffff"}
             />
-            <span className={s.propsColorTxt}>{raw}</span>
+            {editing ? (
+              <input
+                aria-label={`Editar ${field.label}`}
+                autoFocus
+                className={s.propsColorInput}
+                list={suggestions.length > 0 ? listId : undefined}
+                onBlur={() => {
+                  const escrito = draft.trim();
+                  const hex = /^[0-9a-f]{6}$/i.test(escrito)
+                    ? `#${escrito}`
+                    : escrito;
+                  if (/^#[0-9a-f]{6}$/i.test(hex)) onWrite(field, hex);
+                  setEditing(false);
+                }}
+                onChange={(e) => setDraft(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") e.currentTarget.blur();
+                  if (e.key === "Escape") setEditing(false);
+                }}
+                ref={inputRef}
+                value={draft}
+              />
+            ) : (
+              <button
+                aria-label={`Editar ${field.label}`}
+                className={s.propsColorTxt}
+                onClick={() => setEditing(true)}
+                type="button"
+              >
+                {raw}
+              </button>
+            )}
           </span>
           <span />
+          {datalist}
         </div>
       );
     }
@@ -379,6 +423,7 @@ function Row({
           <input
             autoFocus
             className={s.propsInput}
+            list={suggestions.length > 0 ? listId : undefined}
             onBlur={() => {
               onWrite(field, draft);
               setEditing(false);
@@ -402,29 +447,27 @@ function Row({
           </button>
         )}
         <span />
+        {datalist}
       </div>
     );
   }
 
   if (isReadOnly) return <MetricRow field={field} shown={shown} />;
 
-  const range = rangeFor(node, field);
-  // `displayValue` devuelve "—" cuando la propiedad todavía no existe en el
-  // nodo (es opcional: un muro nuevo no tiene `thickness` hasta que lo
-  // editás). `Number("—")` es NaN, y un `value={NaN}` en un range hace saltar
-  // el warning de React. El texto ya muestra "—"; el slider no va hasta que
-  // exista un número.
-  const valor = typeof shown === "number" && Number.isFinite(shown) ? shown : null;
-  const display = valor !== null ? formatValue(field, valor) : "—";
+  const display =
+    typeof shown === "number" && Number.isFinite(shown)
+      ? formatValue(field, shown)
+      : "—";
 
   return (
-    <div className={`${s.propsRow} ${s.propsRowNum}`}>
+    <div className={s.propsRow}>
       <span className={s.propsLabel}>{field.label}</span>
       {editing ? (
         <input
           autoFocus
           className={s.propsInput}
           inputMode="decimal"
+          list={suggestions.length > 0 ? listId : undefined}
           onBlur={() => {
             const parsed = Number(draft);
             if (Number.isFinite(parsed)) onWrite(field, parsed);
@@ -449,18 +492,7 @@ function Row({
         </button>
       )}
       <span className={s.propsUnit}>{field.unit ?? ""}</span>
-      {range && valor !== null && (
-        <input
-          aria-label={`Ajustar ${field.label}`}
-          className={s.propsRange}
-          max={range.max}
-          min={range.min}
-          onChange={(e) => onWrite(field, Number(e.target.value))}
-          step={field.step ?? 0.01}
-          type="range"
-          value={valor}
-        />
-      )}
+      {datalist}
     </div>
   );
 }

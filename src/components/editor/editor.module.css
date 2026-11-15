@@ -97,6 +97,33 @@
   backdrop-filter: none;
 }
 
+/* El paquete fija `.dark` en su raíz (`editor-layout-v2.tsx:251`), así que sus
+   utilidades `dark:*` ganan aunque `.shell` re-tematice los tokens a claro. La
+   brújula y los badges del cursor quedaban con fondo negro en un editor blanco.
+   Se reanclan a los tokens del tema; solo aplica en `.shell`, porque `.shellDark`
+   quiere conservar su fondo oscuro. */
+.shell :global([class*="dark:bg-neutral-900/85"]),
+.shell :global([class*="dark:bg-neutral-900/85"]:hover) {
+  background-color: var(--popover) !important;
+  border-color: var(--border) !important;
+}
+
+.shell :global([class*="dark:bg-neutral-700"]) {
+  background-color: var(--muted) !important;
+}
+
+.shell :global([class*="bg-zinc-900/95"]) {
+  background-color: color-mix(in oklch, var(--popover) 92%, transparent) !important;
+  border-color: var(--border) !important;
+}
+
+/* El icono del badge del cursor va en `color="white"` inline: sobre el fondo
+   claro se perdería. Se reancla al foreground. Los badges con `<img>` no se
+   tocan (el SVG del route handler ya viene oscuro). */
+.shell :global([class*="bg-zinc-900/95"] svg) {
+  color: var(--foreground) !important;
+}
+
 /* El paquete usa `rounded-*` unas 363 veces, muchas fixed (xl, 2xl, [3px]).
    Estas reglas viven fuera de `@layer utilities`, así que ganan por orden de
    cascada y aplanan todo a un radio técnico. */
@@ -518,7 +545,7 @@
   margin-left: auto;
 }
 
-/* Fila: label | valor | unidad, con slider opcional debajo. */
+/* Fila: label | valor | unidad. */
 .propsRow {
   display: grid;
   min-height: 24px;
@@ -530,11 +557,6 @@
 
 .propsRow:hover {
   background-color: color-mix(in oklch, var(--accent) 35%, transparent);
-}
-
-.propsRowNum {
-  position: relative;
-  padding-bottom: 15px;
 }
 
 .propsLabel {
@@ -680,10 +702,27 @@
 }
 
 .propsColorTxt {
+  border: 0;
+  background: none;
+  padding: 0;
   font-family: var(--font-mono), ui-monospace, monospace;
   font-size: 10px;
   font-variant-numeric: tabular-nums;
   color: var(--foreground);
+  cursor: text;
+}
+
+.propsColorInput {
+  width: 64px;
+  border: 1px solid var(--primary);
+  background-color: var(--background);
+  padding: 1px 3px;
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+  color: var(--foreground);
+  text-align: right;
+  outline: none;
 }
 
 .propsFoot {
@@ -1358,6 +1397,22 @@
   color: var(--destructive);
 }
 
+/* Renombrar: acción neutra, no destructiva. Mismo tamaño que el borrar. */
+.refEditar {
+  display: flex;
+  height: 20px;
+  width: 20px;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  color: var(--muted-foreground);
+}
+
+.refEditar:hover {
+  background-color: color-mix(in oklch, var(--primary) 12%, transparent);
+  color: var(--primary);
+}
+
 .refOpacity {
   position: relative;
   display: flex;
@@ -1576,4 +1631,236 @@
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
   }
+}
+
+/* ── Presencia ─────────────────────────────────────────────────────────────
+   Indicador de quién más está en el plano. Vive en el navbar, al lado del
+   estado de guardado, porque comparte la misma pregunta: "¿lo de ahora está
+   adentro?". */
+
+.presencia {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  font-size: 0.6875rem;
+  color: var(--muted-foreground);
+  white-space: nowrap;
+}
+
+.presenciaPunto {
+  width: 0.4375rem;
+  height: 0.4375rem;
+  border-radius: 9999px;
+  flex-shrink: 0;
+}
+
+/* Conectando, o esperando: ámbar tenue. */
+.presenciaPunto[data-estado="idle"] {
+  background: var(--border);
+}
+
+/* Nadie más: neutro, para que no parezca un error. */
+.presenciaPunto[data-estado="solo"] {
+  background: var(--muted-foreground);
+  opacity: 0.5;
+}
+
+/* Hay más gente: verde. Es el único estado que "se enciende". */
+.presenciaPunto[data-estado="varios"] {
+  background: #2E7D52;
+}
+
+/* El canal no abrió: rojo. */
+.presenciaPunto[data-estado="error"] {
+  background: var(--destructive);
+}
+
+.presenciaAvatar {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.125rem;
+  height: 1.125rem;
+  padding: 0 0.25rem;
+  border-radius: 9999px;
+  border: 1px solid var(--border);
+  background: var(--accent);
+  color: var(--accent-foreground);
+  font-size: 0.5625rem;
+  font-weight: 600;
+  line-height: 1;
+}
+
+/* Punto de LECTOR: no está escribiendo, solo mirando. */
+.presenciaLector {
+  position: absolute;
+  right: -0.0625rem;
+  bottom: -0.0625rem;
+  width: 0.375rem;
+  height: 0.375rem;
+  border-radius: 9999px;
+  border: 1px solid var(--background);
+  background: var(--muted-foreground);
+}
+
+/* ── Colaboradores e historial de versiones ─────────────────────────────────
+   Los dos paneles comparten estructura: una lista de filas con avatar y una
+   acción al final. Las clases viven acá para no ensuciar el JSX con cadenas
+   globales, como manda la convención del editor. */
+
+/* Solo para lectores de pantalla: visible al accesibilidad, invisible al ojo. */
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
+}
+
+.colabLista {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-height: 15rem;
+  overflow-y: auto;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.colabFila {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.375rem 0.5rem;
+  border-radius: var(--radius);
+}
+
+.colabFila:hover {
+  background: var(--accent);
+}
+
+.colabAvatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.375rem;
+  height: 1.375rem;
+  flex-shrink: 0;
+  border-radius: 9999px;
+  border: 1px solid var(--border);
+  background: var(--muted);
+  color: var(--muted-foreground);
+  font-size: 0.625rem;
+  font-weight: 600;
+  line-height: 1;
+}
+
+.colabDatos {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  flex: 1;
+  line-height: 1.3;
+}
+
+.colabNombre {
+  font-size: 0.75rem;
+  color: var(--popover-foreground);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.colabRol {
+  font-size: 0.625rem;
+  color: var(--primary);
+}
+
+/* LECTOR: el permiso se lee como una limitación, no como un logro. */
+.colabRol[data-lector="true"] {
+  color: var(--muted-foreground);
+}
+
+.colabForm {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  margin-top: 0.5rem;
+  padding-top: 0.5rem;
+  border-top: 1px solid var(--border);
+}
+
+.colabInput,
+.colabSelect {
+  min-width: 0;
+  padding: 0.3125rem 0.5rem;
+  border: 1px solid var(--input);
+  border-radius: var(--radius);
+  background: var(--background);
+  color: var(--popover-foreground);
+  font-size: 0.6875rem;
+}
+
+.colabInput {
+  flex: 1;
+}
+
+.colabSelect {
+  flex-shrink: 0;
+}
+
+.colabEnviar {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  flex-shrink: 0;
+  padding: 0.3125rem 0.5rem;
+  border: none;
+  border-radius: var(--radius);
+  background: var(--primary);
+  color: var(--primary-foreground);
+  font-size: 0.6875rem;
+  font-weight: 600;
+}
+
+.colabEnviar:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* ── Etiquetas de ambiente del visor ─────────────────────────────────────── */
+/* El paquete (@pascal-app/nodes) pinta el nombre de cada zona en blanco, con un
+   halo de 1px del color de la zona, como estilos inline. Sobre pisos claros el
+   texto blanco desaparece. No se puede tocar el paquete, y los estilos inline
+   sólo ceden ante `!important`: acá se reemplaza por tinta oscura con halo
+   claro, que contrasta tanto en pisos claros como en los saturados.
+   `[id$="-label"]` es el contenedor que arma el renderer de zonas
+   (`${node.id}-label`). Los colores van literales y no por token: el overlay de
+   drei no siempre cuelga de `.shell`, así que no hay garantía de que las
+   variables estén declaradas en ese nodo. */
+:global([id$="-label"] > div:first-child) {
+  color: #2b2a28 !important;
+  text-shadow:
+    -1px -1px 0 #faf7f2,
+    1px -1px 0 #faf7f2,
+    -1px 1px 0 #faf7f2,
+    1px 1px 0 #faf7f2 !important;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+}
+
+/* En el plano 2D la misma etiqueta de zona se dibuja como `<text>` SVG con
+   `fill="#ffffff"` y `paint-order="stroke"` (nodes/zone/floorplan.js). Blanco
+   sobre piso claro no se lee. `paint-order` sólo lo usa esa etiqueta, así que
+   sirve de selector; el relleno va a la tinta del editor y se deja intacto el
+   contorno del color de la zona, que la despega del piso. Los atributos de
+   presentación pierden ante cualquier regla CSS, no hace falta `!important`. */
+:global(svg text[paint-order="stroke"]) {
+  fill: #2b2a28;
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   DndContext,
   KeyboardSensor,
@@ -63,6 +63,7 @@ export function LevelSelector() {
 
   const [porBorrar, setPorBorrar] = useState<LevelNode | null>(null);
   const [arrastrando, setArrastrando] = useState<string | null>(null);
+  const [aviso, setAviso] = useState<string | null>(null);
 
   /**
    * El selector vive como hermano de `<Editor>`, así que se posiciona contra
@@ -145,17 +146,42 @@ export function LevelSelector() {
     crearEn(minimo - 1);
   };
 
-  const insertarEntre = (indiceInferior: number) => {
-    const inferior = niveles[indiceInferior];
-    if (!inferior) return;
-    crearEn(inferior.level + 1, inferior.level + 1);
-  };
+/**
+ * Inserta un piso entre `indiceInferior` y el de arriba.
+ *
+ * Devuelve `false` cuando no hay piso debajo: es el caso de la última fila de
+ * la lista, donde insertar "entre este y el de abajo" no tiene sentido porque no
+ * hay un de abajo. Antes esa fila pasaba `-1` como índice, `niveles[-1]` era
+ * `undefined` y la función salía en silencio: el "+" no hacía nada y el usuario
+ * no tenía cómo saber si el botón estaba roto.
+ */
+const insertarEntre = (indiceInferior: number): boolean => {
+  const inferior = niveles[indiceInferior];
+  if (!inferior) return false;
+  crearEn(inferior.level + 1, inferior.level + 1);
+  return true;
+};
 
   const confirmarBorrar = () => {
     if (!porBorrar) return;
     borrarPisoConSelectionDeRespaldo(porBorrar.id as AnyNodeId);
     setPorBorrar(null);
   };
+
+  /** Aviso efímero; el timer se cancela al desmontar y al reavisar. */
+  const temporizadorAviso = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const avisar = useCallback((texto: string) => {
+    setAviso(texto);
+    if (temporizadorAviso.current) clearTimeout(temporizadorAviso.current);
+    temporizadorAviso.current = setTimeout(() => setAviso(null), 2600);
+  }, []);
+
+  useEffect(
+    () => () => {
+      if (temporizadorAviso.current) clearTimeout(temporizadorAviso.current);
+    },
+    []
+  );
 
   /**
    * Duplica un piso: copia su subárbol completo un nivel más arriba.
@@ -268,7 +294,16 @@ export function LevelSelector() {
                 nivel={nivel}
                 onDuplicar={() => duplicar(nivel)}
                 onPedirBorrar={() => setPorBorrar(nivel)}
-                onInsertar={() => insertarEntre(niveles.length - 1 - i - 1)}
+                onInsertar={() => {
+                  // El índice de `niveles` correspondiente a la fila visible `i`
+                  // es `length - 1 - i`; para insertar *debajo* hace falta el
+                  // siguiente. Con el `- 1` de más, la última fila pedía -1.
+                  if (!insertarEntre(niveles.length - 1 - i - 1)) {
+                    avisar("No hay un piso debajo de este: usá «Agregar piso abajo».");
+                  } else {
+                    setAviso(null);
+                  }
+                }}
                 seleccionado={nivel.id === nivelSeleccionado}
                 onSeleccionar={() =>
                   setSelection({ buildingId: edificioId, levelId: nivel.id })
@@ -292,30 +327,104 @@ export function LevelSelector() {
       </div>
 
       {porBorrar ? (
-        <div className={s.levelConfirm}>
-          <p className={s.hint}>
-            ¿Borrar <strong>{nombreDePiso(porBorrar)}</strong> y todo lo que
-            contiene? No se puede deshacer.
-          </p>
-          <div className="flex gap-2">
-            <button
-              className={`${s.propsAct} ${s.propsActDanger}`}
-              onClick={confirmarBorrar}
-              type="button"
-            >
-              <Trash2 className="h-3.5 w-3.5" />
-              Borrar
-            </button>
-            <button
-              className={s.propsAct}
-              onClick={() => setPorBorrar(null)}
-              type="button"
-            >
-              Cancelar
-            </button>
-          </div>
-        </div>
+        <ConfirmacionBorrar
+          alCancelar={() => setPorBorrar(null)}
+          alConfirmar={confirmarBorrar}
+          nombre={nombreDePiso(porBorrar)}
+        />
       ) : null}
+
+      {aviso ? (
+        <p className={s.levelConfirm} role="status">
+          {aviso}
+        </p>
+      ) : null}
+    </div>
+  );
+}
+
+/**
+ * Confirmación de borrado de un piso.
+ *
+ * Antes era un `<div>` suelto: sin `role`, sin foco, sin cierre con Escape y sin
+ * que un lector de pantalla anunciara nada. Es una acción destructiva e
+ * irreversible sobre todo el subárbol del piso, así que va como
+ * `alertdialog`: el foco entra, Tab queda dentro y Escape cancela.
+ */
+function ConfirmacionBorrar({
+  nombre,
+  alConfirmar,
+  alCancelar,
+}: {
+  nombre: string;
+  alConfirmar: () => void;
+  alCancelar: () => void;
+}) {
+  const caja = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    caja.current?.focus();
+  }, []);
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        e.stopPropagation();
+        alCancelar();
+        return;
+      }
+      if (e.key !== "Tab") return;
+
+      // Foco atrapado: sin esto, Tab se va al lienzo del editor por detrás.
+      const focos = caja.current?.querySelectorAll<HTMLElement>("button");
+      if (!focos || focos.length === 0) return;
+      const primero = focos[0];
+      const ultimo = focos[focos.length - 1];
+
+      if (e.shiftKey && document.activeElement === primero) {
+        e.preventDefault();
+        ultimo.focus();
+      } else if (!e.shiftKey && document.activeElement === ultimo) {
+        e.preventDefault();
+        primero.focus();
+      }
+    };
+
+    window.addEventListener("keydown", onKey, true);
+    return () => window.removeEventListener("keydown", onKey, true);
+  }, [alCancelar]);
+
+  return (
+    <div
+      aria-labelledby="confirmar-borrar-piso"
+      aria-modal="true"
+      className={s.levelConfirm}
+      onKeyDown={(e) => e.stopPropagation()}
+      ref={caja}
+      role="alertdialog"
+      tabIndex={-1}
+    >
+      <p className={s.hint} id="confirmar-borrar-piso">
+        ¿Borrar <strong>{nombre}</strong> y todo lo que contiene? No se puede
+        deshacer.
+      </p>
+      <div className="flex gap-2">
+        <button
+          className={`${s.propsAct} ${s.propsActDanger}`}
+          onClick={alConfirmar}
+          type="button"
+        >
+          <Trash2 className="h-3.5 w-3.5" />
+          Borrar
+        </button>
+        <button
+          className={s.propsAct}
+          onClick={alCancelar}
+          type="button"
+        >
+          Cancelar
+        </button>
+      </div>
     </div>
   );
 }
@@ -394,7 +503,16 @@ function FilaNivel({
               setBorrador(nombreDePiso(nivel));
               setEditando(true);
             }}
-            title="Clic para seleccionar · doble clic para renombrar"
+            // El doble clic es un gesto de puntero: sin este atajo, quien navega
+            // con teclado no tenía forma de renombrar un piso.
+            onKeyDown={(e) => {
+              if (e.key === "F2" || (e.key === "Enter" && !seleccionado)) {
+                e.preventDefault();
+                setBorrador(nombreDePiso(nivel));
+                setEditando(true);
+              }
+            }}
+            title="Clic para seleccionar · doble clic o F2 para renombrar"
             type="button"
           >
             {nombreDePiso(nivel)}

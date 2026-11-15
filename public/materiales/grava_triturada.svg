@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 120" role="img" aria-label="Montón de grava triturada">
+  <rect width="160" height="120" fill="#f4f1ec"/>
+  <rect x="0" y="92" width="160" height="28" fill="#e6e0d6"/>
+  <path d="M24 96c6-32 28-54 56-54s50 22 56 54z" fill="#a7a29a"/>
+  <g fill="#918c85">
+    <path d="M56 92l10-8 10 8-4 8H60z"/>
+    <path d="M84 88l9-7 9 7-3 9H87z"/>
+    <path d="M70 70l8-6 8 6-2 8H72z"/>
+  </g>
+  <g fill="#bdb8b0">
+    <path d="M40 90l8-6 8 6-3 7H43z"/>
+    <path d="M100 74l7-5 7 5-2 7H102z"/>
+    <path d="M66 48l7-5 7 5-2 7H68z"/>
+  </g>
+</svg>
