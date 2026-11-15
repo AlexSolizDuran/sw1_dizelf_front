@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 120" role="img" aria-label="Montón de arena común">
+  <rect width="160" height="120" fill="#f4f1ec"/>
+  <rect x="0" y="92" width="160" height="28" fill="#e6e0d6"/>
+  <path d="M26 96c8-30 26-52 54-52s46 22 54 52z" fill="#d9c08c"/>
+  <path d="M46 96c6-20 18-34 34-34s28 14 34 34z" fill="#e3cd9f"/>
+  <circle cx="70" cy="80" r="2" fill="#c9ad76"/>
+  <circle cx="92" cy="74" r="1.6" fill="#c9ad76"/>
+  <circle cx="82" cy="88" r="1.6" fill="#c9ad76"/>
+  <path d="M118 92l14-26 4 2-14 26z" fill="#a98467"/>
+  <path d="M128 62l8-8 6 10-8 6z" fill="#8d6b52"/>
+  <rect x="104" y="92" width="46" height="5" rx="2" fill="#c2b8a6" opacity="0"/>
+</svg>

@@ -545,7 +545,7 @@
   margin-left: auto;
 }
 
-/* Fila: label | valor | unidad, con slider opcional debajo. */
+/* Fila: label | valor | unidad. */
 .propsRow {
   display: grid;
   min-height: 24px;
@@ -557,11 +557,6 @@
 
 .propsRow:hover {
   background-color: color-mix(in oklch, var(--accent) 35%, transparent);
-}
-
-.propsRowNum {
-  position: relative;
-  padding-bottom: 15px;
 }
 
 .propsLabel {
@@ -707,10 +702,27 @@
 }
 
 .propsColorTxt {
+  border: 0;
+  background: none;
+  padding: 0;
   font-family: var(--font-mono), ui-monospace, monospace;
   font-size: 10px;
   font-variant-numeric: tabular-nums;
   color: var(--foreground);
+  cursor: text;
+}
+
+.propsColorInput {
+  width: 64px;
+  border: 1px solid var(--primary);
+  background-color: var(--background);
+  padding: 1px 3px;
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+  color: var(--foreground);
+  text-align: right;
+  outline: none;
 }
 
 .propsFoot {
@@ -1820,4 +1832,35 @@
 .colabEnviar:disabled {
   opacity: 0.5;
   cursor: not-allowed;
+}
+
+/* ── Etiquetas de ambiente del visor ─────────────────────────────────────── */
+/* El paquete (@pascal-app/nodes) pinta el nombre de cada zona en blanco, con un
+   halo de 1px del color de la zona, como estilos inline. Sobre pisos claros el
+   texto blanco desaparece. No se puede tocar el paquete, y los estilos inline
+   sólo ceden ante `!important`: acá se reemplaza por tinta oscura con halo
+   claro, que contrasta tanto en pisos claros como en los saturados.
+   `[id$="-label"]` es el contenedor que arma el renderer de zonas
+   (`${node.id}-label`). Los colores van literales y no por token: el overlay de
+   drei no siempre cuelga de `.shell`, así que no hay garantía de que las
+   variables estén declaradas en ese nodo. */
+:global([id$="-label"] > div:first-child) {
+  color: #2b2a28 !important;
+  text-shadow:
+    -1px -1px 0 #faf7f2,
+    1px -1px 0 #faf7f2,
+    -1px 1px 0 #faf7f2,
+    1px 1px 0 #faf7f2 !important;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+}
+
+/* En el plano 2D la misma etiqueta de zona se dibuja como `<text>` SVG con
+   `fill="#ffffff"` y `paint-order="stroke"` (nodes/zone/floorplan.js). Blanco
+   sobre piso claro no se lee. `paint-order` sólo lo usa esa etiqueta, así que
+   sirve de selector; el relleno va a la tinta del editor y se deja intacto el
+   contorno del color de la zona, que la despega del piso. Los atributos de
+   presentación pierden ante cualquier regla CSS, no hace falta `!important`. */
+:global(svg text[paint-order="stroke"]) {
+  fill: #2b2a28;
 }

@@ -19,6 +19,8 @@ export type FieldSpec = {
   /** Write multiplier, the inverse of `scale`. */
   inverse?: number
   options?: readonly string[]
+  /** Valores sugeridos para campos editables: se puede elegir o escribir otro. */
+  suggestions?: readonly string[]
   /** Resolve enum options from the kind's Zod schema. */
   fromSchema?: boolean
   /** Dynamic range around the current value when no min/max is declared. */
@@ -53,6 +55,25 @@ const metric = (
   fn: (node: AnyNode) => number | string,
   unit?: string,
 ): FieldSpec => ({ label, kind: "metric", metric: fn, unit })
+
+/** Sugerencias compartidas: el campo sigue aceptando cualquier valor. */
+const ESCALA_01 = ["0", "0.25", "0.5", "0.75", "1"] as const
+const PALETA_COLORES = [
+  "#ffffff",
+  "#f2f2f2",
+  "#d9d9d9",
+  "#9e9e9e",
+  "#616161",
+  "#000000",
+  "#c8a97e",
+  "#8b5e3c",
+  "#b0bec5",
+  "#90a4ae",
+] as const
+const ANCHOS_VENTANA = ["0.6", "0.8", "0.9", "1.2", "1.5", "1.8", "2.4"] as const
+const ALTOS_VENTANA = ["0.6", "0.9", "1.2", "1.5", "1.8", "2.1"] as const
+const ANTEPECHOS = ["0", "0.45", "0.9", "1.1", "1.5"] as const
+const VUELOS = ["0", "0.05", "0.1", "0.2"] as const
 
 /* ── Lectura / escritura por path ──────────────────────────────────────── */
 
@@ -209,10 +230,31 @@ const materialGroup = (): FieldGroup => ({
   label: "Apariencia",
   fields: [
     { path: ["material", "preset"], label: "Preset", kind: "enum", options: [] as string[], fromSchema: true },
-    txt(["material", "properties", "color"], "Color", { kind: "color" }),
-    num(["material", "properties", "roughness"], "Rugosidad", { min: 0, max: 1, step: 0.01, precision: 2 }),
-    num(["material", "properties", "metalness"], "Metalness", { min: 0, max: 1, step: 0.01, precision: 2 }),
-    num(["material", "properties", "opacity"], "Opacidad", { min: 0, max: 1, step: 0.01, precision: 2 }),
+    txt(["material", "properties", "color"], "Color", {
+      kind: "color",
+      suggestions: PALETA_COLORES,
+    }),
+    num(["material", "properties", "roughness"], "Rugosidad", {
+      min: 0,
+      max: 1,
+      step: 0.01,
+      precision: 2,
+      suggestions: ESCALA_01,
+    }),
+    num(["material", "properties", "metalness"], "Metalness", {
+      min: 0,
+      max: 1,
+      step: 0.01,
+      precision: 2,
+      suggestions: ESCALA_01,
+    }),
+    num(["material", "properties", "opacity"], "Opacidad", {
+      min: 0,
+      max: 1,
+      step: 0.01,
+      precision: 2,
+      suggestions: ESCALA_01,
+    }),
   ],
 })
 
@@ -282,7 +324,9 @@ const CATALOG: Record<string, Catalog> = {
     {
       id: "apariencia",
       label: "Apariencia",
-      fields: [txt(["color"], "Color", { kind: "color" })],
+      fields: [
+        txt(["color"], "Color", { kind: "color", suggestions: PALETA_COLORES }),
+      ],
     },
   ],
   column: [
@@ -356,13 +400,36 @@ const CATALOG: Record<string, Catalog> = {
       id: "dimensiones",
       label: "Dimensiones",
       fields: [
-        num(["width"], "Ancho", { unit: "m", min: 0.1, max: 8 }),
-        num(["height"], "Altura", { unit: "m", min: 0.1, max: 8, step: 0.05 }),
-        num(["sill"], "Antepecho", { unit: "m", min: 0, max: 4, step: 0.05 }),
+        num(["width"], "Ancho", {
+          unit: "m",
+          min: 0.1,
+          max: 8,
+          suggestions: ANCHOS_VENTANA,
+        }),
+        num(["height"], "Altura", {
+          unit: "m",
+          min: 0.1,
+          max: 8,
+          step: 0.05,
+          suggestions: ALTOS_VENTANA,
+        }),
+        num(["sill"], "Antepecho", {
+          unit: "m",
+          min: 0,
+          max: 4,
+          step: 0.05,
+          suggestions: ANTEPECHOS,
+        }),
         // El prototipo declaraba `sillHeight`, que no existe en WindowNode:
         // el campo quedaba en blanco y no se podía escribir. Lo correcto es
         // `sillDepth`, cuánto vuela la ventana por delante de la pared.
-        num(["sillDepth"], "Vuelo", { unit: "m", min: 0, max: 2, step: 0.05 }),
+        num(["sillDepth"], "Vuelo", {
+          unit: "m",
+          min: 0,
+          max: 2,
+          step: 0.05,
+          suggestions: VUELOS,
+        }),
       ],
     },
     {
@@ -454,7 +521,10 @@ const CATALOG: Record<string, Catalog> = {
       label: "Estilo",
       fields: [
         { path: ["style"], label: "Estilo", kind: "enum", fromSchema: true },
-        txt(["color"], "Color", { kind: "color" }),
+        txt(["color"], "Color", {
+          kind: "color",
+          suggestions: PALETA_COLORES,
+        }),
       ],
     },
   ],
@@ -603,11 +673,3 @@ export function formatValue(spec: FieldSpec, value: number | string): string {
   return value.toFixed(precision)
 }
 
-export function rangeFor(node: AnyNode, spec: FieldSpec): { min: number; max: number } | null {
-  if (spec.kind !== "number") return null
-  const current = spec.path ? Number(readPath(node, spec.path)) : NaN
-  if (spec.min != null && spec.max != null) return { min: spec.min, max: spec.max }
-  if (!Number.isFinite(current)) return null
-  const span = spec.span ?? Math.max(Math.abs(current) * 0.25, spec.step ?? 0.01) * 4
-  return { min: current - span, max: current + span }
-}

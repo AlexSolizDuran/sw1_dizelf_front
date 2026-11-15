@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 120" role="img" aria-label="Rollo de alambre de amarre">
+  <rect width="160" height="120" fill="#f4f1ec"/>
+  <rect x="0" y="100" width="160" height="20" fill="#e6e0d6"/>
+  <ellipse cx="80" cy="74" rx="38" ry="24" fill="#9aa1a7"/>
+  <ellipse cx="80" cy="70" rx="38" ry="24" fill="#b4bbc1"/>
+  <ellipse cx="80" cy="70" rx="22" ry="13" fill="#87909a"/>
+  <ellipse cx="80" cy="70" rx="22" ry="13" fill="#f4f1ec"/>
+  <ellipse cx="80" cy="70" rx="22" ry="13" fill="none" stroke="#8d959c" stroke-width="2"/>
+  <path d="M80 70c22 0 34 6 40 16" stroke="#87909a" stroke-width="2.5" fill="none"/>
+  <path d="M120 86c6 6 4 12-4 12" stroke="#87909a" stroke-width="2.5" fill="none"/>
+  <path d="M58 66c-6-18 4-30 22-30" stroke="#a7aeb4" stroke-width="3" fill="none" stroke-linecap="round"/>
+</svg>

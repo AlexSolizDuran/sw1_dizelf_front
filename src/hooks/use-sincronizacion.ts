@@ -7,6 +7,7 @@ import { clearSceneHistory, useScene } from "@pascal-app/core";
 import type { AnyNode, AnyNodeId } from "@pascal-app/core";
 import { useProjectStore } from "@/stores/use-project-store";
 import { instalarUndoYjs, type UndoYjs } from "@/lib/editor/undo-yjs";
+import { alCerrarPreview, previewActivo } from "@/lib/ia/preview";
 import {
   aplicarCambiosDocumento,
   aplicarDelta,
@@ -438,6 +439,12 @@ export function useSincronizacion(
       ? useScene.subscribe((estadoStore) => {
           if (aplicandoRemoto.current) return;
           if (!inicializado.current) return;
+          // Durante el borrador del asistente la escena cambia y se descarta:
+          // si se enviara al doc, los demás verían geometría fantasma y el
+          // update de la restauración quedaría en el CRDT. No se actualiza
+          // `anteriorRef` para que el diff posterior siga comparando contra la
+          // última escena publicada.
+          if (previewActivo()) return;
 
           const siguiente: EstadoEscena = {
             nodes: estadoStore.nodes,
@@ -466,6 +473,30 @@ export function useSincronizacion(
           aplicarCambiosDocumento(doc, anterior, siguiente, origen);
         })
       : () => {};
+
+    /**
+     * Updates remotos que llegaron con el borrador del asistente abierto.
+     *
+     * Se guardan en vez de aplicarse: el borrador se descarta al cerrar el
+     * turno y pisaría la edición del otro cliente. Al cerrar se aplican sobre
+     * la escena ya restaurada.
+     */
+    const remotosEnEspera: Uint8Array[] = [];
+    const soltarRemotosEnEspera = (): void => {
+      if (remotosEnEspera.length === 0) return;
+      const pendientesBytes = remotosEnEspera.splice(0);
+      aplicandoRemoto.current = true;
+      try {
+        for (const bytes of pendientesBytes) {
+          Y.applyUpdate(doc, bytes, ORIGEN_REMOTO);
+        }
+        volcarRemoto();
+      } finally {
+        aplicandoRemoto.current = false;
+        remotoPendiente = null;
+      }
+    };
+    const desregistrarSoltar = alCerrarPreview(soltarRemotosEnEspera);
 
     // ── Remoto → store ───────────────────────────────────────────────────────
     socket.on(
@@ -549,6 +580,13 @@ export function useSincronizacion(
       if (!inicializado.current) return;
       const bytes =
         binario instanceof Uint8Array ? binario : new Uint8Array(binario);
+
+      // Con el borrador del asistente abierto el update espera: aplicarlo
+      // ahora se perdería en la restauración del turno.
+      if (previewActivo()) {
+        remotosEnEspera.push(bytes);
+        return;
+      }
 
       aplicandoRemoto.current = true;
       try {
@@ -651,6 +689,7 @@ export function useSincronizacion(
     );
 
     return () => {
+      desregistrarSoltar();
       desuscribir();
       // Se quitan los listeners antes de desconectar: el `disconnect` no debe
       // tocar estado de un componente que se está desmontando.

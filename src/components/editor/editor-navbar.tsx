@@ -2,7 +2,16 @@
 
 import { useCallback, useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, Box, Compass, Moon, Save, Scan, Sun } from "lucide-react";
+import {
+  ArrowLeft,
+  Box,
+  Calculator,
+  Compass,
+  Moon,
+  Save,
+  Scan,
+  Sun,
+} from "lucide-react";
 import { IndicadorPresencia } from "./indicador-presencia";
 import { PanelColaboradores } from "./panel-colaboradores";
 import { PanelVersiones } from "./panel-versiones";
@@ -42,6 +51,8 @@ interface Props {
   miRol: string;
   /** Se dispara tras restaurar una versión (avisa que terminó). */
   onRestaurar: () => void;
+  /** Abre el panel de presupuesto de materiales. */
+  onAbrirPresupuesto: () => void;
   /** Estado del canal de sync. Si falta, se asume `listo`. */
   estadoSync?: EstadoSync;
   /** Motivo del último error de sync, para el tooltip. */
@@ -59,6 +70,7 @@ export function EditorNavbar({
   proyectoId,
   miRol,
   onRestaurar,
+  onAbrirPresupuesto,
   estadoSync,
   mensajeSync,
 }: Props) {
@@ -194,6 +206,18 @@ export function EditorNavbar({
         */}
         <PanelColaboradores miRol={miRol} proyectoId={proyectoId} />
         <IndicadorPresencia proyectoId={proyectoId} />
+
+        {/* Presupuesto de materiales: disponible para todos los roles (un
+            LECTOR consulta el historial), la edición se valida en el panel. */}
+        <button
+          aria-label="Abrir el presupuesto de materiales"
+          className={s.iconBtn}
+          onClick={onAbrirPresupuesto}
+          title="Presupuesto de materiales"
+          type="button"
+        >
+          <Calculator className="h-3.5 w-3.5" />
+        </button>
 
         <div className={s.seg}>
           <button

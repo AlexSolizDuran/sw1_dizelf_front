@@ -8,6 +8,7 @@ import { Footer } from "@/components/layout/footer";
 import { Plus, FolderKanban, Trash2, Loader2, ArrowRight, Users } from "lucide-react";
 import { useAuthStore } from "@/stores/use-auth-store";
 import { apiCrearProyecto, apiEliminarProyecto, apiListarProyectos } from "@/lib/projects";
+import { HelpAssistant } from "@/components/ayuda/help-assistant";
 import type { ProyectoLista } from "@/types/proyecto";
 
 export default function ProyectosPage() {
@@ -184,6 +185,7 @@ export default function ProyectosPage() {
         )}
       </main>
 
+      <HelpAssistant usuarioId={user?.id ?? null} />
       <Footer />
     </div>
   );

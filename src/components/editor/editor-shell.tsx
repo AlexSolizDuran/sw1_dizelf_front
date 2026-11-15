@@ -4,6 +4,9 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { Editor, type SceneGraph, useEditor } from "@pascal-app/editor";
 import { useScene } from "@pascal-app/core";
 import { useProjectStore } from "@/stores/use-project-store";
+import { useAuthStore } from "@/stores/use-auth-store";
+import { AssistantPanel } from "@/components/ia/asistente-panel";
+import { HelpAssistant } from "@/components/ayuda/help-assistant";
 import type { DocumentoProyecto } from "@/types/proyecto";
 import { BuildTab } from "./build-tab";
 import { EditorNavbar, type TonoGuardado } from "./editor-navbar";
@@ -14,6 +17,7 @@ import { MueblesTab } from "./muebles-tab";
 import { BottomBar } from "./menus/bottom-bar";
 import { LevelSelector } from "./menus/level-selector";
 import { PropertiesPanel } from "./properties-panel";
+import { PanelPresupuesto } from "./presupuesto/panel-presupuesto";
 import { bootstrapRegistry } from "./icons/registry-patch";
 import { useDeleteOnClick } from "@/hooks/use-delete-on-click";
 import { useSincronizacion } from "@/hooks/use-sincronizacion";
@@ -70,6 +74,7 @@ interface Props {
 export function EditorShell({ proyectoId, nombreProyecto }: Props) {
   const guardarVersion = useProjectStore((st) => st.guardarVersion);
   const proyecto = useProjectStore((st) => st.proyecto);
+  const usuarioId = useAuthStore((st) => st.user?.id ?? null);
 
   useDeleteOnClick();
   // LECTOR incluido: el plano se ve en vivo, pero el hook no lo deja escribir.
@@ -81,6 +86,7 @@ export function EditorShell({ proyectoId, nombreProyecto }: Props) {
   const [tema, setTema] = useState<"claro" | "oscuro">("claro");
   const [tono, setTono] = useState<TonoGuardado>("idle");
   const [aviso, setAviso] = useState<string | null>(null);
+  const [presupuestoAbierto, setPresupuestoAbierto] = useState(false);
 
   const soloLectura = proyecto?.puedeEditar === false;
 
@@ -266,6 +272,7 @@ export function EditorShell({ proyectoId, nombreProyecto }: Props) {
                   setAviso("No se pudo guardar la versión.");
                 }
               }}
+              onAbrirPresupuesto={() => setPresupuestoAbierto(true)}
               onRestaurar={() => {
                 // Sin recarga: el backend re-siembra el doc del gateway y
                 // difunde `sync:inicial`, que reemplaza la escena en vivo (ver
@@ -318,6 +325,20 @@ export function EditorShell({ proyectoId, nombreProyecto }: Props) {
 
       <LevelBootstrap />
       <PropertiesPanel />
+      <AssistantPanel
+        puedeEditar={!soloLectura}
+        proyectoId={proyectoId}
+        usuarioId={usuarioId}
+      />
+      <HelpAssistant usuarioId={usuarioId} />
+      <PanelPresupuesto
+        abierto={presupuestoAbierto}
+        miRol={proyecto?.miRol ?? "CREADOR"}
+        nombreProyecto={nombreProyecto}
+        onCerrar={() => setPresupuestoAbierto(false)}
+        proyectoId={proyectoId}
+        puedeEditar={!soloLectura}
+      />
 
       {(cargando || error) && (
         <div className={s.boot}>

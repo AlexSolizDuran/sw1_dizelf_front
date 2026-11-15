@@ -1,0 +1,358 @@
+[
+  {
+    "id": "circ-pasillo-ancho",
+    "titulo": "Circulación: ancho de paso",
+    "temas": ["circulacion", "pasillo", "accesibilidad"],
+    "tipo": "referencia",
+    "texto": "El ancho libre de un pasillo o de una circulación principal suele ubicarse entre 0,90 y 1,00 m en vivienda. Por debajo de 0,90 m el paso se vuelve incómodo con bolsos, ropa de cama o una persona con muletas. Para circulación accesible, con silla de ruedas, se recomienda 1,20 m, y 1,50 m en los puntos donde hay que girar o cruzarse con otra persona. Los pasillos secundarios o de servicio pueden bajar a 0,80 m. Conviene medir el ancho libre entre paramentos terminados y no entre ejes de muro, porque el revoque y los zócalos descuentan varios centímetros.",
+    "datos": [
+      { "etiqueta": "ancho mínimo recomendado", "valor": 0.9, "unidad": "m" },
+      { "etiqueta": "ancho accesible", "valor": 1.2, "unidad": "m" }
+    ],
+    "ambito": "generico"
+  },
+  {
+    "id": "circ-puerta-ancho",
+    "titulo": "Puertas: ancho de hoja y paso libre",
+    "temas": ["circulacion", "puertas", "accesibilidad"],
+    "tipo": "referencia",
+    "texto": "Una puerta interior de vivienda suele tener 0,80 m de hoja, lo que deja un paso libre algo menor por el espesor de la hoja y el marco. En baños y dormitorios no conviene bajar de 0,80 m; 0,70 m solo se justifica en placares, depósitos o baños de servicio muy pequeños. Para circulación accesible se recomienda 0,90 m de hoja. La puerta de entrada se ubica entre 0,90 y 1,00 m. Además del ancho importa el lado de apertura: la hoja no debe invadir el área de uso del artefacto ni bloquear el paso cuando queda abierta.",
+    "datos": [{ "etiqueta": "hoja interior", "valor": 0.8, "unidad": "m" }],
+    "ambito": "generico"
+  },
+  {
+    "id": "circ-giro-accesible",
+    "titulo": "Espacio de giro y aproximación accesible",
+    "temas": ["circulacion", "accesibilidad", "bano"],
+    "tipo": "referencia",
+    "texto": "Un círculo libre de 1,50 m de diámetro permite que una silla de ruedas gire completa dentro de un ambiente. En baños pequeños se acepta un giro de 1,20 m si hay transferencia lateral. Frente a puertas y artefactos conviene dejar una franja libre de al menos 0,90 m de ancho por 1,20 m de profundidad para la aproximación. Estos círculos deben quedar libres de muebles aunque estén dibujados como piezas sueltas: la verificación se hace sobre el espacio realmente disponible.",
+    "datos": [
+      { "etiqueta": "giro completo", "valor": 1.5, "unidad": "m" },
+      { "etiqueta": "aproximación", "valor": 0.9, "unidad": "m" }
+    ],
+    "ambito": "generico"
+  },
+  {
+    "id": "circ-escalera",
+    "titulo": "Escaleras: huella, contrahuella y descansos",
+    "temas": ["circulacion", "escaleras", "accesibilidad"],
+    "tipo": "referencia",
+    "texto": "La relación clásica de una escalera cómoda es huella de 0,28 a 0,30 m y contrahuella de 0,17 a 0,18 m. La suma de dos contrahuellas más una huella debería rondar 0,63 a 0,65 m. El ancho libre de una escalera de vivienda unifamiliar suele ser de 0,90 a 1,00 m; en edificios de varios departamentos se recomienda 1,10 m o más. Cada tramo no debería superar los 15 o 16 escalones sin un descanso. La altura libre sobre la línea de huella debe ser de 2,10 m como mínimo para no golpear la cabeza.",
+    "datos": [
+      { "etiqueta": "huella", "valor": 0.28, "unidad": "m" },
+      { "etiqueta": "contrahuella", "valor": 0.18, "unidad": "m" },
+      { "etiqueta": "ancho libre", "valor": 0.9, "unidad": "m" }
+    ],
+    "ambito": "generico"
+  },
+  {
+    "id": "circ-rampa",
+    "titulo": "Rampas: pendiente y descansos",
+    "temas": ["circulacion", "accesibilidad", "rampa"],
+    "tipo": "referencia",
+    "texto": "Una rampa accesible se resuelve con pendiente de 8 % en tramos cortos y hasta 10 % en tramos de menos de 3 m. Para salvar más de 0,20 m conviene no pasar del 8 %. El ancho libre recomendado es 1,20 m, con barandas a ambos lados y un borde de contención de 0,05 m. Cada 9 m de desarrollo horizontal hace falta un descanso de 1,50 m. Si el desnivel es menor a 0,20 m, un plano inclinado suave puede resolver el acceso, pero igual necesita superficie antideslizante y drenaje.",
+    "datos": [
+      { "etiqueta": "pendiente máxima", "valor": 8, "unidad": "%" },
+      { "etiqueta": "ancho libre", "valor": 1.2, "unidad": "m" }
+    ],
+    "ambito": "generico"
+  },
+  {
+    "id": "circ-relacion-ambientes",
+    "titulo": "Circulación y relaciones entre ambientes",
+    "temas": ["circulacion", "distribucion", "privacidad"],
+    "tipo": "buena-practica",
+    "texto": "La circulación principal debería conectar el acceso con el estar sin atravesar dormitorios ni baños. Un dormitorio que funciona como paso obligado pierde privacidad y suma ruido. Conviene que los ambientes sociales se agrupen cerca del acceso y que la zona íntima quede en un extremo, con un distribuidor que sirva a dos o tres puertas. La cocina se beneficia de estar próxima al estar y al comedor, pero separada de los dormitorios. Un baño de uso común accesible desde la circulación evita que las visitas entren a la zona privada.",
+    "ambito": "generico"
+  },
+  {
+    "id": "hum-bano-superficie",
+    "titulo": "Baño: superficie y lado mínimo",
+    "temas": ["bano", "superficie", "humedo"],
+    "tipo": "referencia",
+    "texto": "Un baño completo con inodoro, lavabo y ducha suele necesitar entre 3,0 y 3,5 m². Por debajo de 3,0 m² cuesta ubicar los tres artefactos con circulación razonable. Para un baño con bañera, 4,0 a 4,5 m² es más realista. El lado menor no debería bajar de 1,40 m cuando los artefactos se alinean sobre un muro, y de 1,60 m cuando se enfrentan. Un baño de servicio o toilette, con inodoro y lavabo solamente, puede resolverse en 1,5 a 2,0 m².",
+    "datos": [
+      { "etiqueta": "superficie mínima", "valor": 3.0, "unidad": "m²" },
+      { "etiqueta": "lado menor", "valor": 1.4, "unidad": "m" }
+    ],
+    "ambito": "generico"
+  },
+  {
+    "id": "hum-bano-distribucion",
+    "titulo": "Baño: distribución de artefactos",
+    "temas": ["bano", "artefactos", "distribucion"],
+    "tipo": "referencia",
+    "texto": "El inodoro necesita 0,80 m de ancho libre y al menos 0,60 m de profundidad para sentarse, con 0,20 m a cada lado del eje. El lavabo requiere 0,60 m de frente y 0,55 m de profundidad, y conviene dejar 0,15 m entre el lavabo y el muro lateral. La ducha se ubica lejos de la puerta para que el piso no se moje al entrar. Si el baño es de uso simultáneo, conviene separar la zona de lavabo de la de inodoro y ducha, porque permite que dos personas lo usen a la vez.",
+    "datos": [
+      { "etiqueta": "ancho libre inodoro", "valor": 0.8, "unidad": "m" },
+      { "etiqueta": "frente lavabo", "valor": 0.6, "unidad": "m" }
+    ],
+    "ambito": "generico"
+  },
+  {
+    "id": "hum-ducha",
+    "titulo": "Ducha: dimensiones y cerramiento",
+    "temas": ["bano", "ducha", "superficie"],
+    "tipo": "referencia",
+    "texto": "La ducha mínima cómoda es de 0,90 × 0,90 m. Por debajo de 0,80 × 0,80 m el movimiento se vuelve incómodo y el agua salpica fuera del receptáculo. Para ducha accesible se recomienda 1,20 × 1,20 m o 1,00 × 1,20 m con banco. El receptáculo debe tener pendiente hacia el desagüe y un desnivel o resalte máximo de 0,02 m si se busca acceso sin escalón. El cerramiento puede ser fijo o corredizo, pero no debe invadir la circulación del baño cuando está abierto.",
+    "datos": [
+      { "etiqueta": "lado mínimo", "valor": 0.9, "unidad": "m" },
+      { "etiqueta": "resalte máximo", "valor": 0.02, "unidad": "m" }
+    ],
+    "ambito": "generico"
+  },
+  {
+    "id": "hum-cocina",
+    "titulo": "Cocina: superficies y distancias",
+    "temas": ["cocina", "superficie", "circulacion"],
+    "tipo": "referencia",
+    "texto": "Entre los dos frentes de una cocina en galería conviene dejar 1,20 m si hay una sola persona y 1,50 m si circulan dos. La mesada se proyecta 0,60 m y la altura habitual es 0,90 m. Frente a la mesada hace falta 0,90 m libres para abrir puertas de placares y electrodomésticos. El triángulo entre pileta, cocina y heladera debería sumar entre 3,6 y 6,0 m de recorrido total. La campana o el extractor se ubica sobre la cocina, y la heladera no debería quedar al lado del horno.",
+    "datos": [
+      { "etiqueta": "paso entre frentes", "valor": 1.2, "unidad": "m" },
+      { "etiqueta": "profundidad mesada", "valor": 0.6, "unidad": "m" }
+    ],
+    "ambito": "generico"
+  },
+  {
+    "id": "hum-ventilacion",
+    "titulo": "Ventilación de locales húmedos",
+    "temas": ["ventilacion", "bano", "cocina", "humedad"],
+    "tipo": "referencia",
+    "texto": "Baños, cocinas y lavaderos necesitan renovación de aire permanente. La solución preferida es una ventana practicable al exterior; si el local no tiene fachada, se resuelve con conducto vertical hasta cubierta o extracción mecánica. Un baño sin ventana al exterior requiere extracción que funcione, no un simple agujero: el aire debe tener entrada y salida. Para baños, la renovación recomendada ronda entre 6 y 10 renovaciones por hora; en cocinas, el extractor debe mover entre 200 y 400 m³/h según el tamaño.",
+    "datos": [
+      { "etiqueta": "renovaciones baño", "valor": 6, "unidad": "por hora" },
+      { "etiqueta": "extractor cocina", "valor": 200, "unidad": "m³/h" }
+    ],
+    "ambito": "generico"
+  },
+  {
+    "id": "hum-pendiente",
+    "titulo": "Pendientes e impermeabilización",
+    "temas": ["humedad", "impermeabilizacion", "pendiente", "bano"],
+    "tipo": "referencia",
+    "texto": "El piso de un baño, lavadero o terraza debe tener pendiente hacia el desagüe, del 1 al 2 % en locales húmedos y del 0,5 al 1 % en terrazas. La impermeabilización se extiende por el piso y sube por los paramentos al menos 0,20 m, y hasta 1,80 m en el perímetro de la ducha. Conviene prever un zócalo sanitario o un encuentro redondeado entre piso y muro. En balcones y terrazas, el desagüe se ubica en el punto más bajo y el alero protege la fachada.",
+    "datos": [
+      { "etiqueta": "pendiente local húmedo", "valor": 1, "unidad": "%" },
+      { "etiqueta": "alto de impermeabilización", "valor": 0.2, "unidad": "m" }
+    ],
+    "ambito": "generico"
+  },
+  {
+    "id": "hum-lavadero",
+    "titulo": "Lavadero y tendido",
+    "temas": ["lavadero", "circulacion", "ventilacion"],
+    "tipo": "buena-practica",
+    "texto": "Un lavadero con lavarropas necesita al menos 1,20 × 1,20 m para trabajar delante del equipo. El lavarropas ocupa unos 0,60 × 0,60 m, más 0,10 m detrás para mangueras y 0,90 m libres al frente. Si se agrega pileta de lavar, sumar 0,50 m de ancho. El tendido puede ser interior con ventilación forzada o exterior protegido; en ambos casos conviene que reciba sol y aire. Un lavadero sin ventilación concentra humedad y afecta la estructura y los revoques.",
+    "datos": [
+      { "etiqueta": "superficie de trabajo", "valor": 1.2, "unidad": "m" },
+      { "etiqueta": "frente libre", "valor": 0.9, "unidad": "m" }
+    ],
+    "ambito": "generico"
+  },
+  {
+    "id": "dorm-superficie",
+    "titulo": "Dormitorios: superficie y proporción",
+    "temas": ["dormitorio", "superficie", "proporcion"],
+    "tipo": "referencia",
+    "texto": "Un dormitorio de una cama necesita 9 m² como mínimo razonable. Con dos camas individuales conviene 11 a 12 m², y con cama doble 12 a 14 m². El lado menor no debería bajar de 2,70 m, y mejor 3,00 m, para ubicar la cama y dejar paso a los dos lados. Una proporción alargada, por encima de 1:2, complica el amoblamiento. Por debajo de 8 m² el dormitorio funciona pero pierde lugar para guardado y circulación.",
+    "datos": [
+      { "etiqueta": "superficie mínima", "valor": 9.0, "unidad": "m²" },
+      { "etiqueta": "lado menor", "valor": 2.7, "unidad": "m" }
+    ],
+    "ambito": "generico"
+  },
+  {
+    "id": "dorm-cama-circulacion",
+    "titulo": "Cama y circulación en dormitorios",
+    "temas": ["dormitorio", "cama", "circulacion", "muebles"],
+    "tipo": "referencia",
+    "texto": "La cama doble mide 1,40 a 1,60 m de ancho por 2,00 m de largo; la individual, 0,80 a 0,90 × 1,90 m. Conviene dejar 0,60 m libres a los lados para tender la cama y 0,70 a 0,90 m en el lado de acceso principal. Frente a un placard, 0,90 m permiten abrirlo con comodidad. La cama no debería quedar enfrentada a la puerta ni con la cabecera bajo la ventana si eso obliga a taparla. Si hay dos camas, separarlas al menos 0,50 m.",
+    "datos": [
+      { "etiqueta": "paso lateral", "valor": 0.6, "unidad": "m" },
+      { "etiqueta": "paso de acceso", "valor": 0.7, "unidad": "m" }
+    ],
+    "ambito": "generico"
+  },
+  {
+    "id": "dorm-guardado",
+    "titulo": "Guardado: placares y profundidad",
+    "temas": ["dormitorio", "guardado", "placard"],
+    "tipo": "referencia",
+    "texto": "Un placard con puertas batientes necesita 0,60 m de profundidad interior, más el espesor de las puertas. Con puertas corredizas alcanza 0,60 m totales. Para ropa colgada, la barra se ubica a 1,70 m del piso y el estante superior a 1,90 m. Un vestidor necesita 0,60 m de estante a un lado y 0,90 m de circulación. Como referencia, conviene prever entre 0,5 y 0,8 m² de guardado por persona, además del placard de ropa de cama.",
+    "datos": [
+      { "etiqueta": "profundidad", "valor": 0.6, "unidad": "m" },
+      { "etiqueta": "circulación de vestidor", "valor": 0.9, "unidad": "m" }
+    ],
+    "ambito": "generico"
+  },
+  {
+    "id": "estar-superficie",
+    "titulo": "Estar: superficie y organización",
+    "temas": ["estar", "living", "superficie", "muebles"],
+    "tipo": "referencia",
+    "texto": "Un estar con sofá, mesa y circulación suele necesitar 14 a 18 m². Para cuatro personas, 16 m² permiten ubicar un sofá de 2,20 m, dos sillones y una mesa de 0,80 × 1,20 m sin bloquear el paso. La distancia entre el sofá y el televisor varía con el tamaño de pantalla: entre 2,0 y 3,0 m es habitual. Si el estar se integra con el comedor, conviene separar las zonas con el mobiliario o con un cambio de piso, no con un muro, para conservar la sensación de amplitud.",
+    "datos": [
+      { "etiqueta": "superficie recomendada", "valor": 14, "unidad": "m²" },
+      { "etiqueta": "distancia al televisor", "valor": 2, "unidad": "m" }
+    ],
+    "ambito": "generico"
+  },
+  {
+    "id": "dorm-iluminacion",
+    "titulo": "Iluminación natural en dormitorios",
+    "temas": ["dormitorio", "iluminacion", "ventana"],
+    "tipo": "referencia",
+    "texto": "Los dormitorios necesitan luz natural directa. Como regla general, la superficie vidriada de un ambiente habitable se ubica cerca de 1/8 de la superficie del piso. Para un dormitorio de 12 m², eso son 1,5 m² de ventana. La ventana debe dar al exterior, no a un patio cubierto ni a otro ambiente. Si la ventana es la única fuente, conviene que el antepecho no supere 0,90 m para que la luz llegue a la cama y permita ver hacia afuera.",
+    "datos": [
+      { "etiqueta": "superficie vidriada", "valor": 0.125, "unidad": "del piso" },
+      { "etiqueta": "antepecho", "valor": 0.9, "unidad": "m" }
+    ],
+    "ambito": "generico"
+  },
+  {
+    "id": "env-altura-libre",
+    "titulo": "Altura libre de ambientes",
+    "temas": ["altura", "envolvente", "confort"],
+    "tipo": "referencia",
+    "texto": "La altura libre habitual en vivienda es de 2,40 a 2,60 m en ambientes principales. Por debajo de 2,40 m el espacio se percibe bajo, sobre todo en verano y en ambientes grandes. Los baños, pasillos y depósitos pueden bajar a 2,20 m. La altura se mide de piso terminado a cielo raso terminado, así que el espesor de contrapiso y cielorraso descuenta centímetros. Si hay vigas vistas, la altura libre se mide en el punto más bajo.",
+    "datos": [
+      { "etiqueta": "altura libre mínima", "valor": 2.4, "unidad": "m" },
+      { "etiqueta": "altura recomendada", "valor": 2.6, "unidad": "m" }
+    ],
+    "ambito": "generico"
+  },
+  {
+    "id": "env-aberturas-alturas",
+    "titulo": "Aberturas: alféizar, dintel y proporciones",
+    "temas": ["aberturas", "ventana", "puerta", "altura"],
+    "tipo": "referencia",
+    "texto": "El dintel de puertas interiores se ubica a 2,10 m del piso terminado. Para ventanas, el alféizar habitual está entre 0,90 y 1,10 m; en dormitorios y livings, 0,90 m permite ver hacia afuera sentado. Las ventanas altas, con alféizar a 1,50 m o más, sirven para baños y circulaciones porque dan luz sin exponer. La relación ancho/alto más común es 1:1,2 o 1:1,5. Un dintel demasiado bajo respecto del cielo raso achica visualmente el ambiente.",
+    "datos": [
+      { "etiqueta": "dintel de puerta", "valor": 2.1, "unidad": "m" },
+      { "etiqueta": "alféizar habitual", "valor": 0.9, "unidad": "m" }
+    ],
+    "ambito": "generico"
+  },
+  {
+    "id": "env-iluminacion-natural",
+    "titulo": "Superficie vidriada e iluminación natural",
+    "temas": ["iluminacion", "ventana", "envolvente"],
+    "tipo": "referencia",
+    "texto": "La regla de 1/8 relaciona la superficie de ventanas con la superficie del piso: un ambiente de 20 m² debería tener unos 2,5 m² de vidrio. Es una referencia de confort, no un cálculo lumínico. La luz útil depende de la orientación, del alero, del tipo de vidrio y de la profundidad del ambiente. Un ambiente profundo con una sola ventana pequeña queda oscuro en el fondo aunque cumpla la relación. Para mejorar, conviene sumar una segunda abertura en el muro opuesto antes que agrandar la existente.",
+    "datos": [{ "etiqueta": "superficie vidriada", "valor": 0.125, "unidad": "del piso" }],
+    "ambito": "generico"
+  },
+  {
+    "id": "env-aleros",
+    "titulo": "Aleros y control solar",
+    "temas": ["alero", "solar", "envolvente", "confort"],
+    "tipo": "buena-practica",
+    "texto": "Un alero protege la ventana del sol alto de verano y deja pasar el sol bajo de invierno. Como referencia, el alero debería proyectarse entre 0,40 y 0,60 veces la altura de la ventana para lograr ese efecto en fachadas con sol directo. En fachadas con sol de tarde conviene combinarlo con persianas exteriores o vegetación, porque el sol llega bajo y el alero solo no alcanza. El alero también protege la carpintería de la lluvia y evita manchas en el revoque.",
+    "datos": [{ "etiqueta": "proyección del alero", "valor": 0.4, "unidad": "× altura de ventana" }],
+    "ambito": "generico"
+  },
+  {
+    "id": "env-aislamiento",
+    "titulo": "Aislamiento de la envolvente",
+    "temas": ["aislamiento", "envolvente", "energia"],
+    "tipo": "referencia",
+    "texto": "La envolvente es lo que separa el interior del exterior: muros, cubierta, piso en contacto con el terreno y carpinterías. Un muro de mampostería de 0,15 m sin aislación tiene un comportamiento térmico pobre; sumar 0,03 a 0,05 m de aislación mejora mucho más que engrosar el muro. Las carpinterías con vidrio simple pierden calor por conducción y por infiltración. Conviene priorizar la aislación de la cubierta y de las ventanas, porque son las superficies con mayor intercambio.",
+    "datos": [
+      { "etiqueta": "aislación recomendada", "valor": 0.03, "unidad": "m" },
+      { "etiqueta": "aislación alta", "valor": 0.05, "unidad": "m" }
+    ],
+    "ambito": "generico"
+  },
+  {
+    "id": "est-luz-losa",
+    "titulo": "Luces de losa y modulación",
+    "temas": ["estructura", "losa", "modulacion"],
+    "tipo": "referencia",
+    "texto": "Una losa maciza de hormigón armado suele salvar luces de 4 a 6 m sin vigas vistas. Una losa nervurada o aligerada llega a 7 u 8 m, y una losa con vigas postesadas puede superar los 10 m. En vivienda, la modulación más común ronda los 3,0 a 4,0 m entre ejes de muros portantes. Si el ambiente necesita más luz, conviene alinear los tabiques con la modulación y no apoyar muros nuevos sobre el centro de la losa.",
+    "datos": [
+      { "etiqueta": "luz de losa maciza", "valor": 4, "unidad": "m" },
+      { "etiqueta": "modulación típica", "valor": 3, "unidad": "m" }
+    ],
+    "ambito": "generico"
+  },
+  {
+    "id": "est-espesor-muros",
+    "titulo": "Espesores de muro",
+    "temas": ["estructura", "muros", "espesor"],
+    "tipo": "referencia",
+    "texto": "Un tabique interior de mampostería tradicional tiene 0,10 a 0,15 m de espesor. Un muro exterior de ladrillo común ronda 0,15 a 0,30 m según el sistema y la aislación. Los muros de hormigón armado como portantes tienen 0,15 a 0,20 m. El espesor visible en el plano no siempre coincide con el eje: conviene medir sobre la cara terminada. En tabiques con instalaciones embutidas, 0,10 m puede quedar justo; 0,12 a 0,15 m evita picar de más.",
+    "datos": [
+      { "etiqueta": "tabique interior", "valor": 0.1, "unidad": "m" },
+      { "etiqueta": "muro portante", "valor": 0.15, "unidad": "m" }
+    ],
+    "ambito": "generico"
+  },
+  {
+    "id": "est-continuidad",
+    "titulo": "Continuidad estructural entre plantas",
+    "temas": ["estructura", "columnas", "plantas"],
+    "tipo": "buena-practica",
+    "texto": "Las columnas y muros portantes deberían mantener su posición vertical entre plantas. Cuando una columna del nivel superior no tiene apoyo directo abajo, la carga se traslada a una viga de transferencia, que suele ser más costosa y más profunda. Antes de mover un muro portante conviene revisar la planta inferior. En el plano, la verificación consiste en comparar la posición de columnas de cada nivel: las que no coinciden necesitan algún elemento de apoyo.",
+    "ambito": "generico"
+  },
+  {
+    "id": "est-juntas",
+    "titulo": "Juntas y encuentros",
+    "temas": ["estructura", "juntas", "fisuras"],
+    "tipo": "referencia",
+    "texto": "Las juntas de dilatación permiten que el edificio se mueva sin fisurarse. En construcciones extensas se ubican cada 30 a 40 m en hormigón y cada 15 a 20 m en mampostería, según el sistema. También hacen falta juntas entre materiales distintos y en los encuentros entre una construcción existente y una ampliación. Una junta mal resuelta se convierte en una fisura por donde entra agua. En el plano conviene que la junta atraviese toda la estructura y no quede tapada por un revoque continuo.",
+    "datos": [
+      { "etiqueta": "junta en hormigón", "valor": 30, "unidad": "m" },
+      { "etiqueta": "junta en mampostería", "valor": 15, "unidad": "m" }
+    ],
+    "ambito": "generico"
+  },
+  {
+    "id": "sus-ventilacion-cruzada",
+    "titulo": "Ventilación cruzada",
+    "temas": ["ventilacion", "confort", "sustentabilidad"],
+    "tipo": "buena-practica",
+    "texto": "La ventilación cruzada necesita al menos dos aberturas en lados opuestos o perpendiculares del ambiente, con entrada baja y salida alta. Una sola ventana renueva poco, aunque esté abierta: el aire entra pero no encuentra salida. Para un ambiente de 15 m², dos aberturas de 0,50 m² bien ubicadas funcionan mejor que una de 1,50 m² en un solo muro. La diferencia de altura entre entrada y salida mejora el tiro. En plantas profundas conviene un patio o un conducto que conecte con cubierta.",
+    "datos": [
+      { "etiqueta": "aberturas necesarias", "valor": 2, "unidad": "mínimo" },
+      { "etiqueta": "superficie por abertura", "valor": 0.5, "unidad": "m²" }
+    ],
+    "ambito": "generico"
+  },
+  {
+    "id": "sus-orientacion",
+    "titulo": "Orientación de los ambientes",
+    "temas": ["orientacion", "solar", "confort"],
+    "tipo": "buena-practica",
+    "texto": "La orientación define cuánto sol recibe cada ambiente. En el hemisferio sur conviene ubicar dormitorios y estar hacia el norte o el este, y evitar el oeste en verano por el sol de tarde. En el hemisferio norte la lógica se invierte. La cocina y el lavadero se benefician del sol de la mañana. Los ambientes de servicio pueden ubicarse al sur o al oeste. Sin un norte definido en el plano, la orientación no se puede evaluar; conviene fijarlo antes de decidir la distribución.",
+    "ambito": "generico"
+  },
+  {
+    "id": "sus-sombreado",
+    "titulo": "Sombreado de fachadas",
+    "temas": ["sombreado", "solar", "fachada"],
+    "tipo": "buena-practica",
+    "texto": "El sombreado exterior es más eficaz que cualquier cortina interior: detiene el sol antes de que atraviese el vidrio. Las opciones van del alero y la persiana exterior a la pérgola, el parasol o la vegetación de hoja caduca, que da sombra en verano y deja pasar el sol en invierno. En fachadas con sol de tarde, la protección vertical o el árbol alineado funcionan mejor que un alero horizontal. La eficacia depende de la orientación real, así que sin norte en el plano solo puede evaluarse la presencia del elemento.",
+    "ambito": "generico"
+  },
+  {
+    "id": "sus-inercia",
+    "titulo": "Inercia térmica",
+    "temas": ["inercia", "materiales", "confort"],
+    "tipo": "referencia",
+    "texto": "La inercia térmica es la capacidad de un material de almacenar calor y liberarlo después. Un muro de mampostería o de hormigón tiene más inercia que uno de placa de yeso. Esa inercia estabiliza la temperatura interior si el muro está aislado del exterior y recibe sol directo. En climas con gran amplitud térmica diaria conviene combinar inercia con aislación y ventilación nocturna. Un muro macizo sin aislación en un clima frío pierde calor rápido y no alcanza a compensarlo.",
+    "ambito": "generico"
+  },
+  {
+    "id": "sus-agua-lluvia",
+    "titulo": "Agua de lluvia y cubierta",
+    "temas": ["agua", "cubierta", "sustentabilidad"],
+    "tipo": "buena-practica",
+    "texto": "La cubierta es la primera superficie de captación de agua. Una pendiente de 5 a 15 % en cubiertas de chapa o teja permite escurrir sin estancamientos; en cubiertas planas, 1 a 2 % hacia los desagües. Canaletas y conductos deben dimensionarse según la superficie de cubierta y la lluvia de la zona. Para riego se puede derivar una bajada a un tanque, con filtro y rebalse. El agua de la primera lluvia se descarta porque arrastra polvo y hojas.",
+    "datos": [
+      { "etiqueta": "pendiente de cubierta", "valor": 5, "unidad": "%" },
+      { "etiqueta": "pendiente de cubierta plana", "valor": 1, "unidad": "%" }
+    ],
+    "ambito": "generico"
+  }
+]

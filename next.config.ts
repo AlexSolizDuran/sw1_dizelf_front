@@ -93,6 +93,23 @@ const ICONIFY_ORIGINS = [
 const IS_DEV = process.env.NODE_ENV !== "production";
 
 /**
+ * Fotos de producto del presupuesto de materiales.
+ *
+ * Las tarjetas del catálogo muestran la foto que publica la tienda que cotiza
+ * ese material, hotlinkeada desde su CDN (la URL la sirve el backend junto con
+ * el precio; no se copian los archivos). Son dos orígenes porque el catálogo
+ * mezcla una tienda WooCommerce (`constructorbolivia.com`) con una Shopify
+ * (`cdn.shopify.com`, de donde cuelga la ferretería Morales). Los manuales, en
+ * cambio, son `'self'`: salen de `public/materiales/*.svg`.
+ *
+ * Solo `img-src`: no son `fetch`, son `<img>`.
+ */
+const TIENDAS_IMG = [
+  "https://www.constructorbolivia.com",
+  "https://cdn.shopify.com",
+].join(" ");
+
+/**
  * CSP del sitio.
  *
  * `script-src` y `style-src` necesitan `'unsafe-inline'`: Next inyecta el
@@ -124,7 +141,7 @@ const IS_DEV = process.env.NODE_ENV !== "production";
 const CSP = [
   "default-src 'self'",
   `connect-src 'self' data: ${API_BASE_URL} ${API_WS_URL} ${ASSETS_ORIGIN} ${ASSETS_CDN} ${DRACO_CDN} ${KTX2_CDN} ${ICONIFY_ORIGINS}`,
-  `img-src 'self' data: blob: ${ASSETS_ORIGIN} ${ASSETS_CDN}`,
+  `img-src 'self' data: blob: ${ASSETS_ORIGIN} ${ASSETS_CDN} ${TIENDAS_IMG}`,
   `font-src 'self' data: ${ASSETS_CDN}`,
   // Las imágenes guía del editor se sirven como blob: y some los .glb y las
   // texturas salen de los orígenes de arriba.
@@ -196,11 +213,13 @@ const nextConfig: NextConfig = {
             key: "Referrer-Policy",
             value: "strict-origin-when-cross-origin",
           },
-          // El editor solo necesita WebGL: cámara, micrófono y geolocalización
-          // se niegan para que un script inyectado no pueda pedir permisos.
+          // El editor solo necesita WebGL. La cámara y la geolocalización se
+          // niegan para que un script inyectado no pueda pedir permisos; el
+          // micrófono se habilita para el mismo origen porque el asistente
+          // incluye dictado por voz (`/api/ia/transcribe`).
           {
             key: "Permissions-Policy",
-            value: "camera=(), microphone=(), geolocation=(), interest-cohort=()",
+            value: "camera=(), microphone=(self), geolocation=(), interest-cohort=()",
           },
           {
             key: "Strict-Transport-Security",

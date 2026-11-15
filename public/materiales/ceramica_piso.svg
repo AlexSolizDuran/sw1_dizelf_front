@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 120" role="img" aria-label="Piezas de cerámica para piso">
+  <rect width="160" height="120" fill="#f4f1ec"/>
+  <rect x="0" y="98" width="160" height="22" fill="#e6e0d6"/>
+  <g>
+    <rect x="34" y="74" width="76" height="14" rx="2" fill="#b9a894"/>
+    <rect x="34" y="70" width="76" height="10" rx="2" fill="#cfc0ac"/>
+    <rect x="38" y="58" width="76" height="14" rx="2" fill="#c4b39d"/>
+    <rect x="38" y="54" width="76" height="10" rx="2" fill="#ded2c0"/>
+    <rect x="30" y="42" width="96" height="12" rx="2" fill="#cdbdab"/>
+    <rect x="30" y="36" width="96" height="12" rx="2" fill="#e7ded1"/>
+    <path d="M30 36l96 0-8 6H38z" fill="#f3ece2"/>
+    <path d="M46 76h50M50 60h50" stroke="#b7a793" stroke-width="1.5"/>
+  </g>
+</svg>
