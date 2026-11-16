@@ -294,12 +294,22 @@ export function EditorShell({ proyectoId, nombreProyecto }: Props) {
 
       <LevelBootstrap />
       <PropertiesPanel />
-      <AssistantPanel
-        puedeEditar={!soloLectura}
-        proyectoId={proyectoId}
-        usuarioId={usuarioId}
-      />
-      <HelpAssistant usuarioId={usuarioId} />
+
+      {/*
+       * Los lanzadores del chat son `position: fixed` con `z-index: 60`, así que
+       * se veían flotando sobre el aviso de carga (`z-index: 70`). Se ocultan
+       * con `display: none` y NO se desmontan: si el visor vuelve a cargar —por
+       * ejemplo al restaurar una versión— el chat conserva su estado.
+       */}
+      <div style={{ display: cargando || error ? "none" : undefined }}>
+        <AssistantPanel
+          puedeEditar={!soloLectura}
+          proyectoId={proyectoId}
+          usuarioId={usuarioId}
+        />
+        <HelpAssistant usuarioId={usuarioId} />
+      </div>
+
       <PanelPresupuesto
         abierto={presupuestoAbierto}
         miRol={proyecto?.miRol ?? "CREADOR"}
@@ -310,7 +320,12 @@ export function EditorShell({ proyectoId, nombreProyecto }: Props) {
       />
 
       {(cargando || error) && (
-        <div className={s.boot}>
+        <div
+          aria-busy={!error}
+          aria-live={error ? "assertive" : "polite"}
+          className={s.boot}
+          role={error ? "alert" : "status"}
+        >
           {error ? (
             <>
               <p className={s.bootErr}>{error}</p>
@@ -318,9 +333,14 @@ export function EditorShell({ proyectoId, nombreProyecto }: Props) {
             </>
           ) : (
             <>
-              <div className="h-10 w-10 animate-spin rounded-full border-4 border-[var(--muted)] border-t-[var(--primary)]" />
+              <span className={s.bootBrand}>Dizelf</span>
+              <div aria-hidden className={s.bootSpinner} />
+              <p className={s.bootProject}>{nombreProyecto}</p>
               <p className={s.bootMsg}>
-                {!registroListo ? "Cargando módulos…" : "Cargando proyecto…"}
+                {!registroListo ? "Preparando el editor…" : "Cargando el plano…"}
+              </p>
+              <p className={s.bootHint}>
+                La primera vez puede tardar unos segundos.
               </p>
             </>
           )}

@@ -1589,14 +1589,57 @@
 .boot {
   position: absolute;
   inset: 0;
-  z-index: 50;
+  /* Por encima del chrome del editor (40/50) Y de los lanzadores de chat (60):
+     mientras el plano carga no debe quedar nada flotando sobre el aviso. */
+  z-index: 70;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 4px;
+  gap: 8px;
   background-color: var(--background);
   color: var(--foreground);
+}
+
+/* Marca en versalitas, como el resto de las etiquetas técnicas del editor. */
+.bootBrand {
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-size: 10px;
+  letter-spacing: 0.34em;
+  text-transform: uppercase;
+  color: var(--muted-foreground);
+}
+
+.bootSpinner {
+  width: 38px;
+  height: 38px;
+  margin-top: 4px;
+  border-radius: 9999px;
+  border: 3px solid var(--muted);
+  border-top-color: var(--primary);
+  animation: bootSpin 0.9s linear infinite;
+}
+
+@keyframes bootSpin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.bootProject {
+  max-width: 420px;
+  padding: 0 24px;
+  text-align: center;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--foreground);
+}
+
+.bootHint {
+  margin-top: 2px;
+  font-size: 11px;
+  color: var(--muted-foreground);
+  opacity: 0.75;
 }
 
 .bootMsg {
