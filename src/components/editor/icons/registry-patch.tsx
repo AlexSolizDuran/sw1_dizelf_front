@@ -70,13 +70,38 @@ export function patchRegistryIcons(): number {
 }
 
 /**
+ * Registro en curso o ya resuelto. Vive a nivel de módulo a propósito.
+ *
+ * `loadPlugin` NO es idempotente: `registerNode` lanza en producción si el kind
+ * ya existe (`[registry] duplicate node kind: "shelf" already registered`) y en
+ * dev solo deja un warning. El registro (`nodeRegistry`) es un singleton de
+ * módulo que sobrevive a la navegación del cliente, así que el segundo montaje
+ * de `EditorShell` —volver a `/proyectos` y entrar a otro proyecto— volvía a
+ * cargar el plugin y reventaba el editor con "No se pudo iniciar el editor".
+ *
+ * Cachear la PROMESA (y no el resultado) cubre además el doble efecto de
+ * StrictMode en dev: dos llamadas concurrentes comparten la misma carga.
+ */
+let bootstrap: Promise<number> | null = null;
+
+/**
  * Registra los tipos de nodo y reemplaza sus iconos.
  *
- * Idempotente: `loadPlugin` ignora un plugin ya cargado y el parche vuelve a
- * fijar el mismo loader cacheado, así que llamarlo dos veces no remonta nada.
+ * Idempotente por caché: la carga corre una sola vez por carga de página.
+ * `patchRegistryIcons` sí es idempotente por diseño —reasigna el mismo
+ * `loaderPara(kind)` cacheado—, así que llamarla de nuevo no remonta iconos.
  */
 export function bootstrapRegistry(): Promise<number> {
-  return loadPlugin(builtinPlugin).then(() => patchRegistryIcons());
+  bootstrap ??= loadPlugin(builtinPlugin)
+    .then(() => patchRegistryIcons())
+    .catch((error: unknown) => {
+      // Un fallo real (apiVersion, plugin corrupto) no debe quedar cacheado:
+      // el próximo montaje merece otro intento.
+      bootstrap = null;
+      throw error;
+    });
+
+  return bootstrap;
 }
 
 /** Un icono suelto para un tipo, fuera del registro. */

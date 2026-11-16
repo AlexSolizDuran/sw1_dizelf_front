@@ -1,6 +1,22 @@
 import { ApiError } from "@/types/auth";
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
+/**
+ * Ruta del proxy same-origin al backend. Relativa a propósito: el navegador
+ * habla con el mismo origen que la página y Next reenvía a `BACKEND_URL` (ver
+ * `next.config.ts`, `API_PROXY_PATH`).
+ *
+ * POR QUÉ RELATIVA: la cookie de sesión la emite el backend sin `Domain`, así
+ * que en producción queda host-only del dominio del backend y el route handler
+ * de `/api/ia/*` —que corre en Vercel— nunca la recibía. Con el proxy, el
+ * `Set-Cookie` viaja por el dominio del front y la sesión vuelve a ser legible
+ * en todo el sitio. En dev el rewrite apunta a `localhost:3001`, así que el
+ * comportamiento es el mismo en los dos entornos.
+ *
+ * No se configura por variable a propósito: una URL absoluta acá se saltearía
+ * el proxy y reintroduciría el bug de la cookie (fue exactamente lo que pasó
+ * con la `NEXT_PUBLIC_API_URL` que apuntaba a Render).
+ */
+export const API_BASE_URL = "/api/backend";
 
 /**
  * Tope por petición.

@@ -4,8 +4,18 @@ import { useEffect, useRef, useState } from "react";
 import { io, type Socket } from "socket.io-client";
 import { useEditor } from "@pascal-app/editor";
 import { useViewer } from "@pascal-app/viewer";
+import { esErrorDeSesion, pedirTicketSync } from "@/lib/sync-ticket";
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
+/**
+ * Origen del WebSocket. Lo inyecta `next.config.ts` desde `BACKEND_URL`: Vercel
+ * no proxea WebSockets, así que presencia va directo al backend y se autentica
+ * con un ticket (la cookie quedó en el dominio del front al pasar el HTTP por
+ * `/api/backend`).
+ *
+ * El fallback cubre `npm run dev` sin `NEXT_PUBLIC_WS_URL`: es el puerto clásico
+ * del backend Nest.
+ */
+const API_WS_URL = process.env.NEXT_PUBLIC_WS_URL || "http://localhost:3001";
 
 /**
  * Qué está mirando cada persona en el plano ahora mismo.
@@ -70,10 +80,29 @@ export function usePresencia(proyectoId: string | null): EstadoPresencia {
       return;
     }
 
-    const socket = io(`${API_BASE_URL}/presencia`, {
+    const socket = io(`${API_WS_URL}/presencia`, {
       query: { proyectoId },
       withCredentials: true,
       transports: ["websocket", "polling"],
+      /*
+       * Igual que en `use-sincronizacion`: el ticket se pide en cada conexión y
+       * reconexión, y `withCredentials` queda para el camino de respaldo por
+       * cookie (desarrollo local).
+       */
+      auth: (cb) => {
+        pedirTicketSync(proyectoId)
+          .then((ticket) => cb({ ticket }))
+          .catch((error: unknown) => {
+            if (esErrorDeSesion(error)) {
+              setError(
+                error.message || "Tu sesión venció. Volvé a iniciar sesión."
+              );
+            }
+            // Sin ticket el servidor rechaza; socket.io reintenta y el próximo
+            // intento pide uno nuevo.
+            cb({});
+          });
+      },
     });
     socketRef.current = socket;
 

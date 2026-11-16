@@ -5,6 +5,7 @@ import { Editor, type SceneGraph, useEditor } from "@pascal-app/editor";
 import { useScene } from "@pascal-app/core";
 import { useProjectStore } from "@/stores/use-project-store";
 import { useAuthStore } from "@/stores/use-auth-store";
+import { createDefaultScene } from "@/lib/editor/default-scene";
 import { AssistantPanel } from "@/components/ia/asistente-panel";
 import { HelpAssistant } from "@/components/ayuda/help-assistant";
 import type { DocumentoProyecto } from "@/types/proyecto";
@@ -25,46 +26,6 @@ import { Braces, Hammer, Paintbrush, Sofa } from "./icons/glyphs";
 import s from "./editor.module.css";
 
 const TEMA_KEY = "dizelf-editor-tema";
-
-/** Terreno de 30×30 m con un edificio y un nivel, para empezar de cero. */
-function createDefaultScene(): SceneGraph {
-  const siteId = "site_default";
-  const buildingId = "building_default";
-  const levelId = "level_default";
-
-  return {
-    nodes: {
-      [siteId]: {
-        id: siteId,
-        type: "site",
-        polygon: {
-          type: "polygon",
-          points: [
-            [-15, -15],
-            [15, -15],
-            [15, 15],
-            [-15, 15],
-          ],
-        },
-        children: [buildingId],
-      },
-      [buildingId]: {
-        id: buildingId,
-        type: "building",
-        children: [levelId],
-        position: [0, 0, 0],
-        rotation: [0, 0, 0],
-      },
-      [levelId]: {
-        id: levelId,
-        type: "level",
-        level: 0,
-        children: [],
-      },
-    },
-    rootNodeIds: [siteId],
-  } as SceneGraph;
-}
 
 interface Props {
   proyectoId: string;
@@ -123,12 +84,20 @@ export function EditorShell({ proyectoId, nombreProyecto }: Props) {
 
   /**
    * El documento ya lo trajo `editor-loader` antes de montar el shell, así que
-   * acá no se vuelve a pedir. Si aún no hay nada, se arranca con el terreno por
-   * defecto y la primera edición lo persiste.
+   * acá no se vuelve a pedir.
+   *
+   * Si no hay documento —o la escena guardada está vacía, como en los proyectos
+   * creados antes de que `apiCrearProyecto` persistiera la escena inicial— se
+   * arranca con el terreno por defecto. Sin ese fallback la escena queda sin
+   * building/level y el floorplan muestra "Switch to a building level…".
    */
   const onLoad = useCallback(async (): Promise<SceneGraph> => {
     const documento = useProjectStore.getState().documento;
-    return documento?.scene ?? createDefaultScene();
+    const escena = documento?.scene;
+    if (!escena || Object.keys(escena.nodes ?? {}).length === 0) {
+      return createDefaultScene();
+    }
+    return escena;
   }, []);
 
   /**

@@ -46,18 +46,28 @@ npm run dev
 
 Abrir <http://localhost:3000>.
 
-El frontend no necesita `.env`: `NEXT_PUBLIC_API_URL` cae a
-`http://localhost:3001` si no está definida. Para apuntar a otro backend:
+El frontend no necesita `.env`: el navegador habla con el proxy same-origin
+`/api/backend`, y Next lo reenvía a `BACKEND_URL` (por defecto
+`http://localhost:3001`). Para apuntar a otro backend alcanza con `BACKEND_URL`:
 
 ```bash
-echo "NEXT_PUBLIC_API_URL=https://api.tuservidor.com" > .env.local
+echo "BACKEND_URL=https://api.tuservidor.com" > .env.local
 ```
 
 ## Variables de entorno
 
 | Variable | Para qué | Por defecto |
 |---|---|---|
-| `NEXT_PUBLIC_API_URL` | Base URL del backend | `http://localhost:3001` |
+| `BACKEND_URL` | Origen real del backend (proxy HTTP y URL del WebSocket) | `http://localhost:3001` |
+
+`BACKEND_URL` se usa en **build** (el destino del rewrite y `NEXT_PUBLIC_WS_URL`
+se hornean ahí), así que cambiarla exige redeploy, no solo reiniciar.
+
+El navegador nunca usa ese origen directo: las peticiones HTTP van a
+`/api/backend/*` en el mismo dominio del front, para que la cookie de sesión
+quede ahí y los route handlers de `/api/ia/*` la puedan leer. El WebSocket no se
+puede proxear en Vercel, así que va directo y se autentica con un ticket de
+corta duración (`POST /proyectos/:id/sync-ticket`).
 
 No hay secretos en el frontend. El JWT viaja en una cookie `HttpOnly` que fija
 el backend; nunca se guarda en `localStorage` ni se manda por header.

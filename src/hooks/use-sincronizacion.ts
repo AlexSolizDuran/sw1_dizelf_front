@@ -8,6 +8,7 @@ import type { AnyNode, AnyNodeId } from "@pascal-app/core";
 import { useProjectStore } from "@/stores/use-project-store";
 import { instalarUndoYjs, type UndoYjs } from "@/lib/editor/undo-yjs";
 import { alCerrarPreview, previewActivo } from "@/lib/ia/preview";
+import { esErrorDeSesion, pedirTicketSync } from "@/lib/sync-ticket";
 import {
   aplicarCambiosDocumento,
   aplicarDelta,
@@ -24,7 +25,16 @@ import {
   type EstadoEscena,
 } from "@/lib/editor/y-bridge";
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
+/**
+ * Origen del WebSocket. Lo inyecta `next.config.ts` a partir de `BACKEND_URL`,
+ * porque Vercel no puede proxear WebSockets: el socket va directo al backend y
+ * se autentica con un ticket, no con la cookie (que quedó en el dominio del
+ * front al pasar el HTTP por el proxy).
+ *
+ * El fallback cubre `npm run dev` sin `NEXT_PUBLIC_WS_URL`: es el puerto clásico
+ * del backend Nest.
+ */
+const API_WS_URL = process.env.NEXT_PUBLIC_WS_URL || "http://localhost:3001";
 
 /** Estados que puede mostrar el navbar. */
 export type EstadoSync = "conectando" | "listo" | "reconectando" | "error";
@@ -213,10 +223,31 @@ export function useSincronizacion(
 
     instalarHistorial();
 
-    const socket = io(`${API_BASE_URL}/sync`, {
+    const socket = io(`${API_WS_URL}/sync`, {
       query: { proyectoId },
       withCredentials: true,
       transports: ["websocket", "polling"],
+      /*
+       * El ticket se pide en cada conexión y reconexión: socket.io reevalúa
+       * `auth`, así que no hace falta renovarlo a mano. `withCredentials` se
+       * mantiene para el camino de respaldo (cookie), que sigue vivo en local.
+       */
+      auth: (cb) => {
+        pedirTicketSync(proyectoId)
+          .then((ticket) => cb({ ticket }))
+          .catch((error: unknown) => {
+            if (esErrorDeSesion(error)) {
+              // Sin sesión válida, reintentar solo repetiría el rechazo.
+              cerrarPorError(
+                error.message || "Tu sesión venció. Volvé a iniciar sesión."
+              );
+              return;
+            }
+            // Error transitorio: handshake sin ticket → el servidor rechaza y
+            // socket.io reintenta; el próximo intento pide uno nuevo.
+            cb({});
+          });
+      },
       // El canal de sync manda updates binarios; el polling solo se usa para el
       // handshake inicial si el WebSocket no levanta.
     });
@@ -542,15 +573,37 @@ export function useSincronizacion(
           }
 
           const estadoDoc = materializar(doc);
-          useScene.getState().setScene(
-            estadoDoc.nodes,
-            estadoDoc.rootNodeIds,
-            {
-              collections: estadoDoc.collections as never,
-              materials: estadoDoc.materials as never,
-              installedPlugins: estadoDoc.installedPlugins,
-            }
-          );
+
+          /*
+           * PROYECTO RECIÉN CREADO: el doc del servidor viene vacío pero el
+           * editor ya sembró su escena por defecto en `onLoad` (site + building
+           * + level). Pisarla con `setScene({})` dejaba el plano sin nivel y
+           * aparecía "Switch to a building level to view and edit the
+           * floorplan".
+           *
+           * Se publica DESPUÉS del `sync:listo` porque el gateway descarta los
+           * `sync:update` que llegan con el epoch viejo.
+           *
+           * Una escena vacía legítima (el usuario borró todo) no cae acá:
+           * `onLoad` devuelve esa escena vacía, así que el store tampoco tiene
+           * nodos.
+           */
+          const sembrarEscenaLocal =
+            !reemplazar &&
+            Object.keys(estadoDoc.nodes).length === 0 &&
+            Object.keys(useScene.getState().nodes).length > 0;
+
+          if (!sembrarEscenaLocal) {
+            useScene.getState().setScene(
+              estadoDoc.nodes,
+              estadoDoc.rootNodeIds,
+              {
+                collections: estadoDoc.collections as never,
+                materials: estadoDoc.materials as never,
+                installedPlugins: estadoDoc.installedPlugins,
+              }
+            );
+          }
 
           // `setScene` normaliza la escena; el store posterior es la base del
           // próximo diff.
@@ -561,6 +614,11 @@ export function useSincronizacion(
           // descarta nuestros updates. Va ANTES de reenviar lo local, porque el
           // gateway los descartaría con el epoch viejo.
           socket.emit("sync:listo");
+
+          if (sembrarEscenaLocal && puedeEditar) {
+            // `reemplazarTodo` emite un update, ya con el epoch confirmado.
+            reemplazarTodo(doc, escenaDelStore());
+          }
 
           if (cambiosLocales && cambiosLocales.length > 2) {
             socket.emit("sync:update", cambiosLocales);

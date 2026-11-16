@@ -117,7 +117,17 @@ export async function solicitarChat(
 export function mensajeDeErrorIA(error: unknown): string {
   if (error instanceof ErrorProxy) {
     if (error.status === 401) {
-      return "Tu sesión venció. Volvé a iniciar sesión para usar el asistente.";
+      /*
+       * Se muestra el mensaje del servidor, no uno fijo.
+       *
+       * Antes decía siempre "Tu sesión venció…", y eso mandaba a diagnosticar
+       * mal: el caso real en producción era que la cookie de sesión no llegaba
+       * al route handler porque vivía en el dominio del backend. El servidor
+       * distingue `sin-sesion` ("Iniciá sesión…") de `sesion-invalida`
+       * ("Tu sesión venció…"); el cliente tiene que repetir esa distinción en
+       * vez de inventar una.
+       */
+      return error.message;
     }
     if (error.status === 429) {
       const segundos = error.retryAfterMs

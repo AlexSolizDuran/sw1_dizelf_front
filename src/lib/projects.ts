@@ -1,4 +1,5 @@
 import { apiClient } from "@/lib/api";
+import { createDefaultDocument } from "@/lib/editor/default-scene";
 import type {
   AgregarColaboradorInput,
   Colaborador,
@@ -29,7 +30,14 @@ export async function apiCrearProyecto(
 ): Promise<Proyecto> {
   return apiClient<Proyecto>("/proyectos", {
     method: "POST",
-    body: JSON.stringify({ nombre: input.nombre }),
+    body: JSON.stringify({
+      nombre: input.nombre,
+      // El proyecto nace con la escena por defecto persistida. Si se manda
+      // solo el nombre, el backend guarda `esquemaJson: {}`, el gateway siembra
+      // un Y.Doc vacío y su `sync:inicial` puede borrar el terreno que el editor
+      // creó en `onLoad` (proyecto sin nivel ni floorplan).
+      esquemaJson: createDefaultDocument(),
+    }),
   });
 }
 

@@ -1,11 +1,29 @@
 import type { NextConfig } from "next";
 
 /**
- * Base del backend. Tiene que coincidir con `src/lib/api.ts`: si el CSP
- * bloquea la URL real, `connect-src` corta las llamadas al backend y el síntoma
- * es un error de red que no se parece a nada del front.
+ * Origen real del backend. SOLO servidor/build: no se expone al navegador.
+ *
+ * Es la base del proxy same-origin (`rewrites`) y la fuente de la URL del
+ * WebSocket. Tiene que estar definido en BUILD, igual que antes
+ * `NEXT_PUBLIC_API_URL`: el destino de un rewrite se hornea en el build, no se
+ * resuelve en runtime.
  */
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
+const BACKEND_URL = (process.env.BACKEND_URL || "http://localhost:3001").replace(
+  /\/+$/,
+  ""
+);
+
+/**
+ * Prefijo del proxy HTTP. El navegador habla con el MISMO origen que la página
+ * y Next reenvía a `BACKEND_URL`.
+ *
+ * POR QUÉ: en producción la cookie de sesión la emite el backend sin `Domain`,
+ * así que queda host-only de `*.onrender.com`. El route handler de `/api/ia/*`
+ * corre en Vercel y nunca la recibía → "Tu sesión venció" con el usuario
+ * logueado. Pasando el login por el proxy, el `Set-Cookie` lo emite el dominio
+ * del front y la cookie vuelve a estar donde se lee.
+ */
+const API_PROXY_PATH = "/api/backend";
 
 /**
  * El MISMO origen del backend, pero con esquema de WebSocket.
@@ -16,10 +34,12 @@ const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
  * colaboración —presencia y sincronización— queda muerta sin ningún error en el
  * código: el CSP solo aparece en la consola.
  *
- * Se Vera del `NEXT_PUBLIC_API_URL` en vez de hardcodear `ws://localhost:*`,
- * porque el backend de producción es https y necesita `wss`.
+ * Se deriva de `BACKEND_URL` en vez de pedir otra variable (`NEXT_PUBLIC_WS_URL`):
+ * ese valor ya está disponible en build, y `env` lo inlinea en el bundle igual
+ * que un `NEXT_PUBLIC_*`. Vercel no puede proxear WebSockets, así que el socket
+ * va directo y se autentica con un ticket de corta duración.
  */
-const API_WS_URL = API_BASE_URL.replace(/^http:/, "ws:").replace(/^https:/, "wss:");
+const API_WS_URL = BACKEND_URL.replace(/^http:/, "ws:").replace(/^https:/, "wss:");
 
 /**
  * Orígenes de assets de terceros.
@@ -140,7 +160,7 @@ const TIENDAS_IMG = [
  */
 const CSP = [
   "default-src 'self'",
-  `connect-src 'self' data: ${API_BASE_URL} ${API_WS_URL} ${ASSETS_ORIGIN} ${ASSETS_CDN} ${DRACO_CDN} ${KTX2_CDN} ${ICONIFY_ORIGINS}`,
+  `connect-src 'self' data: ${API_WS_URL} ${ASSETS_ORIGIN} ${ASSETS_CDN} ${DRACO_CDN} ${KTX2_CDN} ${ICONIFY_ORIGINS}`,
   `img-src 'self' data: blob: ${ASSETS_ORIGIN} ${ASSETS_CDN} ${TIENDAS_IMG}`,
   `font-src 'self' data: ${ASSETS_CDN}`,
   // Las imágenes guía del editor se sirven como blob: y some los .glb y las
@@ -158,6 +178,15 @@ const CSP = [
 
 const nextConfig: NextConfig = {
   reactCompiler: true,
+
+  /**
+   * `NEXT_PUBLIC_WS_URL` la calcula este archivo, no el panel de Vercel.
+   *
+   * `env` inlinea el valor en el bundle del cliente igual que un `NEXT_PUBLIC_*`
+   * de `.env`. Así no hay una variable nueva que configurar: sale de
+   * `BACKEND_URL`, que ya existe y ya se necesita en build.
+   */
+  env: { NEXT_PUBLIC_WS_URL: API_WS_URL },
 
   // El entry point de @pascal-app/editor es TypeScript crudo:
   //   "exports": { ".": "./src/index.tsx" }
@@ -184,8 +213,14 @@ const nextConfig: NextConfig = {
   //
   // Es `afterFiles` a propósito: `public/icons/paint.webp` es un archivo real y
   // tiene que ganarle al handler (si no, se pisa con el SVG genérico).
+  //
+  // `/api/backend/*` va en `beforeFiles` para que nada del filesystem le gane:
+  // es el proxy al backend (HTTP same-origin, cookie del dominio del front).
   async rewrites() {
     return {
+      beforeFiles: [
+        { source: `${API_PROXY_PATH}/:path*`, destination: `${BACKEND_URL}/:path*` },
+      ],
       afterFiles: [{ source: "/icons/:name", destination: "/api/icons/:name" }],
     };
   },
