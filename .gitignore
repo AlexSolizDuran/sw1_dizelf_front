@@ -43,3 +43,12 @@ next-env.d.ts
 # Engram memory
 .engram/
 engram-export*.json
+
+# env files: el ejemplo sí se versiona
+!.env.example
+
+# Config local de opencode (puede contener API keys)
+.opencode/opencode.json
+
+# Entorno virtual de Python (scripts locales)
+.venv/

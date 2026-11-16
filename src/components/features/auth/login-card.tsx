@@ -36,8 +36,8 @@ export function LoginCard() {
         identificador: identificador.trim(),
         password,
       });
-      // Al iniciar sesión exitosamente, redirige al área principal
-      router.push("/");
+      // Al iniciar sesión exitosamente, redirigimos al dashboard de proyectos
+      router.replace("/proyectos");
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Error al iniciar sesión";
       setErrorMessage(msg);

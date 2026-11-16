@@ -7,6 +7,7 @@ import type {
   DocumentoProyecto,
   Proyecto,
   ProyectosPaginados,
+  UsuarioBusqueda,
   Version,
 } from "@/types/proyecto";
 
@@ -36,7 +37,7 @@ export async function apiCrearProyecto(
       // solo el nombre, el backend guarda `esquemaJson: {}`, el gateway siembra
       // un Y.Doc vacío y su `sync:inicial` puede borrar el terreno que el editor
       // creó en `onLoad` (proyecto sin nivel ni floorplan).
-      esquemaJson: createDefaultDocument(),
+      esquemaJson: input.esquemaJson ?? createDefaultDocument(),
     }),
   });
 }
@@ -47,6 +48,33 @@ export async function apiObtenerProyecto(id: string): Promise<Proyecto> {
 
 export async function apiEliminarProyecto(id: string): Promise<{ message: string }> {
   return apiClient<{ message: string }>(`/proyectos/${id}`, { method: "DELETE" });
+}
+
+/** Renombra el proyecto. El nombre es lo único editable desde el dashboard. */
+export async function apiActualizarProyecto(
+  id: string,
+  input: { nombre: string }
+): Promise<Proyecto> {
+  return apiClient<Proyecto>(`/proyectos/${id}`, {
+    method: "PATCH",
+    body: JSON.stringify(input),
+  });
+}
+
+/**
+ * Busca usuarios para invitar (`GET /usuarios/buscar`).
+ *
+ * El backend exige al menos 2 caracteres; se filtra acá para no gastar una
+ * petición por cada tecla del buscador.
+ */
+export async function apiBuscarUsuarios(
+  termino: string
+): Promise<UsuarioBusqueda[]> {
+  const limpio = termino.trim();
+  if (limpio.length < 2) return [];
+  return apiClient<UsuarioBusqueda[]>("/usuarios/buscar", {
+    params: { termino: limpio },
+  });
 }
 
 /**

@@ -88,8 +88,8 @@ export function RegisterCard() {
         password: formData.password,
       });
 
-      // Registro exitoso -> el backend fijó la cookie y redirigimos al área principal
-      router.push("/");
+      // Registro exitoso -> el backend fijó la cookie y redirigimos al dashboard
+      router.replace("/proyectos");
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Error al registrarse";
       setErrorMessage(msg);

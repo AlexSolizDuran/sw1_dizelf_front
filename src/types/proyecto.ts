@@ -85,6 +85,23 @@ export interface DocumentoProyecto {
 
 export interface CrearProyectoInput {
   nombre: string;
+  /**
+   * Documento inicial. Si se omite, `apiCrearProyecto` manda
+   * `createDefaultDocument()` para que el gateway no siembre un `Y.Doc` vacío.
+   */
+  esquemaJson?: DocumentoProyecto;
+}
+
+/** Resultado de `GET /usuarios/buscar` (flujo de invitación). */
+export interface UsuarioBusqueda {
+  id: number;
+  username: string;
+  persona: {
+    id: number;
+    nombre: string;
+    apellido: string;
+    gmail: string;
+  };
 }
 
 export interface AgregarColaboradorInput {

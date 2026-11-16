@@ -44,11 +44,15 @@ export const useAuthStore = create<AuthState>((set) => ({
     set({ isLoading: true });
     try {
       const resp = await apiLogin(credentials);
-      // El backend fija la cookie HttpOnly y retorna usuario en el body
+      // El backend fija la cookie HttpOnly y retorna usuario en el body.
+      // `isInitialized: true` es intencional: `SessionProvider` solo llama a
+      // `checkSession()` mientras siga en `false`, y esa llamada podía llegar
+      // antes de que la cookie fuera legible y pisar el login recién hecho.
       set({
         user: resp.usuario,
         isAuthenticated: true,
         isLoading: false,
+        isInitialized: true,
       });
     } catch (error) {
       set({ isLoading: false });
@@ -64,6 +68,7 @@ export const useAuthStore = create<AuthState>((set) => ({
         user: resp.usuario,
         isAuthenticated: true,
         isLoading: false,
+        isInitialized: true,
       });
     } catch (error) {
       set({ isLoading: false });
