@@ -151,8 +151,9 @@ const SUGERENCIAS = [
  *
  * Con un nodo seleccionado los dos paneles se reparten el alto disponible:
  * propiedades se queda con la mitad de arriba y el chat con la de abajo, con
- * 8px de aire entre medio. El ancho es el del inspector para que las dos piezas
- * queden alineadas como una sola columna y ninguna tape a la otra.
+ * 8px de aire entre medio. El ancho es siempre el del inspector, con o sin
+ * propiedades a la vista, para que las dos piezas queden alineadas como una
+ * sola columna y el panel no cambie de tamaño al seleccionar un elemento.
  *
  * Alto disponible = 100dvh - 56px (navbar) - 12px (borde inferior).
  * Media = (100dvh - 76px) / 2 → el chat arranca 56 + 8 + media.
@@ -266,7 +267,7 @@ export function AssistantPanel({
 
   return (
     <ChatPanel
-      ancho={mostrarActividad ? 660 : conPropiedades ? ANCHO_INSPECTOR : 380}
+      ancho={mostrarActividad ? 660 : ANCHO_INSPECTOR}
       etiqueta="Asistente de IA"
       lado="derecha"
       top={conPropiedades ? TOP_MITAD_INFERIOR : "56px"}
