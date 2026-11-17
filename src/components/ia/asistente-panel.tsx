@@ -31,6 +31,11 @@ interface Props {
   usuarioId: number | null;
   proyectoId: string;
   puedeEditar: boolean;
+  /** El estado vive en el shell para que el inspector sepa si debe achicarse. */
+  abierto: boolean;
+  onAbiertoChange: (abierto: boolean) => void;
+  /** Si el panel de propiedades está a la vista, el chat baja a la mitad inferior. */
+  conPropiedades: boolean;
 }
 
 function formatearTokens(tokens: number): string {
@@ -141,6 +146,20 @@ const SUGERENCIAS = [
   "Crea un baño de 2×1,5 m junto al dormitorio.",
 ];
 
+/**
+ * Columna derecha compartida con el inspector de propiedades.
+ *
+ * Con un nodo seleccionado los dos paneles se reparten el alto disponible:
+ * propiedades se queda con la mitad de arriba y el chat con la de abajo, con
+ * 8px de aire entre medio. El ancho es el del inspector para que las dos piezas
+ * queden alineadas como una sola columna y ninguna tape a la otra.
+ *
+ * Alto disponible = 100dvh - 56px (navbar) - 12px (borde inferior).
+ * Media = (100dvh - 76px) / 2 → el chat arranca 56 + 8 + media.
+ */
+const ANCHO_INSPECTOR = 348;
+const TOP_MITAD_INFERIOR = "calc(64px + (100dvh - 76px) / 2)";
+
 const BADGE_TONO: Record<string, string> = {
   verde: "border-[var(--primary)]/30 bg-[var(--primary)]/10 text-[var(--primary)]",
   amarillo:
@@ -149,7 +168,14 @@ const BADGE_TONO: Record<string, string> = {
   gris: "border-[var(--border)] bg-[var(--muted)] text-[var(--muted-foreground)]",
 };
 
-export function AssistantPanel({ usuarioId, proyectoId, puedeEditar }: Props) {
+export function AssistantPanel({
+  usuarioId,
+  proyectoId,
+  puedeEditar,
+  abierto,
+  onAbiertoChange: setAbierto,
+  conPropiedades,
+}: Props) {
   const {
     proveedor,
     modelo,
@@ -181,7 +207,6 @@ export function AssistantPanel({ usuarioId, proyectoId, puedeEditar }: Props) {
     reiniciar,
   } = useIAChat();
 
-  const [abierto, setAbierto] = useState(false);
   const [texto, setTexto] = useState("");
   const [mostrarActividad, setMostrarActividad] = useState(false);
   // Turno pasado elegido desde "Ver actividad"; si es null se sigue el vivo.
@@ -241,10 +266,10 @@ export function AssistantPanel({ usuarioId, proyectoId, puedeEditar }: Props) {
 
   return (
     <ChatPanel
-      ancho={mostrarActividad ? 660 : 380}
-      className="top-[56px]"
+      ancho={mostrarActividad ? 660 : conPropiedades ? ANCHO_INSPECTOR : 380}
       etiqueta="Asistente de IA"
       lado="derecha"
+      top={conPropiedades ? TOP_MITAD_INFERIOR : "56px"}
     >
       <ChatHeader
         acciones={

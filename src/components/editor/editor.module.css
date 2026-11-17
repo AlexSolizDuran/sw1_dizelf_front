@@ -430,6 +430,19 @@
   color: var(--sidebar-foreground);
 }
 
+/*
+ * Chat abierto: la columna derecha se parte en dos mitades iguales.
+ *
+ * Alto disponible = 100dvh - 56px (navbar) - 12px (borde inferior) y 8px de
+ * aire entre los dos paneles: (100dvh - 76px) / 2. El chat arranca justo
+ * debajo de esa mitad (ver TOP_MITAD_INFERIOR en asistente-panel.tsx), así que
+ * ambos miden lo mismo y ninguno se superpone al otro.
+ */
+.propsMitad {
+  height: calc((100dvh - 76px) / 2);
+  max-height: calc((100dvh - 76px) / 2);
+}
+
 .propsHead {
   display: flex;
   flex-shrink: 0;

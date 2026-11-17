@@ -49,7 +49,12 @@ function kindLabel(kind: string): string {
   return KIND_LABELS[kind] ?? nodeRegistry.get(kind)?.presentation?.label ?? kind;
 }
 
-export function PropertiesPanel() {
+export function PropertiesPanel({
+  compacto = false,
+}: {
+  /** Con el chat abierto el inspector se queda con la mitad superior de la columna. */
+  compacto?: boolean;
+}) {
   const selectedIds = useViewer((st) => st.selection.selectedIds);
   const zoneId = useViewer((st) => st.selection.zoneId);
   const setSelection = useViewer((st) => st.setSelection);
@@ -154,7 +159,10 @@ export function PropertiesPanel() {
   const Icon = iconForKind(node.type) ?? Box;
 
   return (
-    <aside aria-label="Propiedades del elemento seleccionado" className={s.props}>
+    <aside
+      aria-label="Propiedades del elemento seleccionado"
+      className={`${s.props}${compacto ? ` ${s.propsMitad}` : ""}`}
+    >
       <header className={s.propsHead}>
         <Icon className="h-[26px] w-[26px] shrink-0 opacity-85" />
         <div className="min-w-0 flex-1">

@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Editor, type SceneGraph, useEditor } from "@pascal-app/editor";
 import { useScene } from "@pascal-app/core";
+import { useViewer } from "@pascal-app/viewer";
 import { useProjectStore } from "@/stores/use-project-store";
 import { useAuthStore } from "@/stores/use-auth-store";
 import { createDefaultScene } from "@/lib/editor/default-scene";
@@ -48,6 +49,27 @@ export function EditorShell({ proyectoId, nombreProyecto }: Props) {
   const [tono, setTono] = useState<TonoGuardado>("idle");
   const [aviso, setAviso] = useState<string | null>(null);
   const [presupuestoAbierto, setPresupuestoAbierto] = useState(false);
+  /**
+   * El chat vive acá y no dentro de `AssistantPanel` porque el inspector de
+   * propiedades necesita saber si debe achicarse a la mitad superior de la
+   * columna derecha.
+   */
+  const [chatAbierto, setChatAbierto] = useState(false);
+
+  // Misma condición que usa el inspector para aparecer: un nodo seleccionado
+  // (o una zona activa) que exista en la escena. Si el panel no se dibuja, el
+  // chat puede usar toda la columna derecha.
+  const idsSeleccionados = useViewer((st) => st.selection.selectedIds);
+  const zonaSeleccionada = useViewer((st) => st.selection.zoneId);
+  const propsVisible = useScene((st) => {
+    const id =
+      idsSeleccionados.length === 1
+        ? idsSeleccionados[0]
+        : idsSeleccionados.length === 0
+          ? zonaSeleccionada
+          : null;
+    return !!id && !!st.nodes[id as keyof typeof st.nodes];
+  });
 
   const soloLectura = proyecto?.puedeEditar === false;
 
@@ -293,7 +315,7 @@ export function EditorShell({ proyectoId, nombreProyecto }: Props) {
       <BottomBar />
 
       <LevelBootstrap />
-      <PropertiesPanel />
+      <PropertiesPanel compacto={chatAbierto} />
 
       {/*
        * Los lanzadores del chat son `position: fixed` con `z-index: 60`, así que
@@ -303,6 +325,9 @@ export function EditorShell({ proyectoId, nombreProyecto }: Props) {
        */}
       <div style={{ display: cargando || error ? "none" : undefined }}>
         <AssistantPanel
+          abierto={chatAbierto}
+          conPropiedades={propsVisible}
+          onAbiertoChange={setChatAbierto}
           puedeEditar={!soloLectura}
           proyectoId={proyectoId}
           usuarioId={usuarioId}

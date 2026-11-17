@@ -55,6 +55,7 @@ export function ChatPanel({
   lado,
   className,
   ancho,
+  top,
   children,
 }: {
   etiqueta: string;
@@ -62,6 +63,12 @@ export function ChatPanel({
   className?: string;
   /** Permite ensanchar el panel cuando se abre la columna de actividad. */
   ancho?: number;
+  /**
+   * Borde superior explícito. Por defecto el chat ocupa todo el alto libre a la
+   * derecha; cuando el inspector de propiedades está a la vista se le pasa la
+   * mitad inferior para que ninguno quede encima del otro.
+   */
+  top?: string;
   children: ReactNode;
 }) {
   const posicion = lado === "izquierda" ? "left-3" : "right-3";
@@ -69,7 +76,7 @@ export function ChatPanel({
     <aside
       aria-label={etiqueta}
       className={`fixed bottom-3 ${posicion} z-[60] flex w-[380px] max-w-[calc(100vw-24px)] flex-col overflow-hidden rounded border border-[var(--border)] bg-[var(--card)] text-[var(--card-foreground)] transition-[width] duration-150 ${className ?? ""}`}
-      style={{ zIndex: 60, ...(ancho ? { width: ancho } : {}) }}
+      style={{ zIndex: 60, top, ...(ancho ? { width: ancho } : {}) }}
     >
       {children}
     </aside>
