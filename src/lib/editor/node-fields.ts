@@ -1,4 +1,9 @@
-import { type AnyNode, nodeRegistry } from "@pascal-app/core"
+import {
+  DEFAULT_WALL_HEIGHT,
+  DEFAULT_WALL_THICKNESS,
+  type AnyNode,
+  nodeRegistry,
+} from "@pascal-app/core"
 
 export type FieldKind = "number" | "text" | "bool" | "enum" | "color" | "metric"
 
@@ -23,6 +28,12 @@ export type FieldSpec = {
   suggestions?: readonly string[]
   /** Resolve enum options from the kind's Zod schema. */
   fromSchema?: boolean
+  /**
+   * Valor a mostrar cuando el nodo no trae el campo (`.optional()` sin default).
+   * Es el mismo que usa el visor para dibujar, así el panel no miente ni
+   * muestra una fila vacía.
+   */
+  fallback?: number | string
   /** Dynamic range around the current value when no min/max is declared. */
   span?: number
   metric?: (node: AnyNode) => number | string
@@ -207,14 +218,77 @@ export function unwrapZodEnum(zod: unknown): string[] | null {
   return null
 }
 
-export function enumOptionsFor(kind: string, path: Path): string[] | null {
+/**
+ * Forma de un `ZodObject` (Zod v4). Devuelve null si el valor no es un objeto
+ * Zod: los campos de un schema NO son propiedades del objeto Zod, así que
+ * `schema.material.preset` es `undefined` aunque el path exista.
+ */
+function zodObjectShape(zod: unknown): Record<string, unknown> | null {
+  const unwrapped = unwrapZod(zod)
+  if (!unwrapped) return null
+  const def = unwrapped.def
+  if (def.type !== "object") return null
+  const shape = def.shape ?? (unwrapped.zod as { shape?: unknown }).shape
+  return shape && typeof shape === "object" ? (shape as Record<string, unknown>) : null
+}
+
+/** Schema del tipo de nodo, tal cual lo registra el paquete. */
+function schemaShapeFor(kind: string): Record<string, unknown> | null {
   try {
     const def = nodeRegistry.get(kind)
     const shape = (def as { schema?: { shape?: Record<string, unknown> } })?.schema?.shape
-    if (!shape) return null
-    return unwrapZodEnum(readPath(shape, path))
-  } catch {}
-  return null
+    return shape ?? null
+  } catch {
+    return null
+  }
+}
+
+/**
+ * Resuelve un path contra el schema atravesando objetos anidados.
+ *
+ * Recorría el schema con `readPath`, que solo funciona con objetos planos: por
+ * eso `material.preset`, `material.properties.color` y compañía quedaban sin
+ * opciones y el select se dibujaba como un texto muerto.
+ */
+function zodAtPath(kind: string, path: Path): unknown {
+  const shape = schemaShapeFor(kind)
+  if (!shape) return undefined
+
+  let cursor: unknown = shape
+  for (const key of path) {
+    if (typeof key !== "string") return undefined
+    const record =
+      zodObjectShape(cursor) ??
+      (cursor && typeof cursor === "object" ? (cursor as Record<string, unknown>) : null)
+    if (!record) return undefined
+    cursor = record[key]
+    if (cursor === undefined) return undefined
+  }
+  return cursor
+}
+
+export function enumOptionsFor(kind: string, path: Path): string[] | null {
+  return unwrapZodEnum(zodAtPath(kind, path))
+}
+
+/** Default declarado en el schema (`.default(...)`), si lo hay. */
+function zodDefaultValue(zod: unknown): unknown {
+  let cursor = zod as Record<string, unknown> | null
+  for (let depth = 0; depth < 8 && cursor; depth++) {
+    const def = (cursor._zod as { def?: Record<string, unknown> } | undefined)?.def
+    if (!def) return undefined
+    if (def.type === "default" || def.type === "prefault") {
+      const valor = def.defaultValue
+      return typeof valor === "function" ? (valor as () => unknown)() : valor
+    }
+    cursor = (def.innerType ?? def.in ?? null) as Record<string, unknown> | null
+  }
+  return undefined
+}
+
+/** Valor por defecto que aplica el visor cuando el nodo no tiene el campo. */
+export function schemaDefaultFor(kind: string, path: Path): unknown {
+  return zodDefaultValue(zodAtPath(kind, path))
 }
 
 /* ── Grupos comunes ───────────────────────────────────────────────────── */
@@ -229,7 +303,15 @@ const materialGroup = (): FieldGroup => ({
   id: "apariencia",
   label: "Apariencia",
   fields: [
-    { path: ["material", "preset"], label: "Preset", kind: "enum", options: [] as string[], fromSchema: true },
+    {
+      path: ["material", "preset"],
+      label: "Preset",
+      kind: "enum",
+      options: [] as string[],
+      fromSchema: true,
+      // Sin material asignado el nodo no tiene preset: el visor usa el suyo.
+      fallback: "custom",
+    },
     txt(["material", "properties", "color"], "Color", {
       kind: "color",
       suggestions: PALETA_COLORES,
@@ -270,9 +352,22 @@ const CATALOG: Record<string, Catalog> = {
       id: "dimensiones",
       label: "Geometría",
       fields: [
-        num(["thickness"], "Espesor", { unit: "m", min: 0.05, max: 0.6 }),
-        num(["height"], "Altura", { unit: "m", min: 0.1, max: 8, step: 0.05 }),
-        num(["curveOffset"], "Curva", { unit: "m", min: -3, max: 3, step: 0.05 }),
+        // `thickness` y `height` son opcionales en el schema: sin fallback la
+        // fila quedaba en "—" y parecía que el muro no tenía esos valores.
+        num(["thickness"], "Espesor", {
+          unit: "m",
+          min: 0.05,
+          max: 0.6,
+          fallback: DEFAULT_WALL_THICKNESS,
+        }),
+        num(["height"], "Altura", {
+          unit: "m",
+          min: 0.1,
+          max: 8,
+          step: 0.05,
+          fallback: DEFAULT_WALL_HEIGHT,
+        }),
+        num(["curveOffset"], "Curva", { unit: "m", min: -3, max: 3, step: 0.05, fallback: 0 }),
         spanMetric,
         num(["start", 0], "Inicio X", { unit: "m" }),
         num(["start", 1], "Inicio Z", { unit: "m" }),
@@ -413,11 +508,14 @@ const CATALOG: Record<string, Catalog> = {
           step: 0.05,
           suggestions: ALTOS_VENTANA,
         }),
-        num(["sill"], "Antepecho", {
+        // `WindowNode.sill` es un BOOLEANO (mostrar o no el antepecho), no una
+        // medida: como número la fila salía vacía y escribirla corrompía el nodo.
+        bool(["sill"], "Antepecho"),
+        num(["sillThickness"], "Espesor antepecho", {
           unit: "m",
-          min: 0,
-          max: 4,
-          step: 0.05,
+          min: 0.01,
+          max: 0.3,
+          step: 0.01,
           suggestions: ANTEPECHOS,
         }),
         // El prototipo declaraba `sillHeight`, que no existe en WindowNode:
@@ -501,7 +599,9 @@ const CATALOG: Record<string, Catalog> = {
     },
     materialGroup(),
   ],
-  roof: [{ id: "apariencia", label: "Apariencia", fields: [{ path: ["material"], label: "Material", kind: "enum", fromSchema: true }] }],
+  // `roof.material` es un MaterialSchema (un objeto), no un enum: el catálogo
+  // pedía opciones en `material` y no había ninguna. Se usa el grupo completo.
+  roof: [materialGroup()],
   "roof-segment": [{ id: "dimensiones", label: "Dimensiones", fields: [num(["slope"], "Pendiente", { unit: "°", min: 0, max: 90, step: 1, precision: 0 })] }],
   fence: [
     {
@@ -554,6 +654,8 @@ const SKIP_KEYS = new Set([
   "type",
   "parentId",
   "children",
+  // Ya está en el grupo Identidad; sin esto se repetía en «Avanzado».
+  "visible",
   "camera",
   "metadata",
   "slots",
@@ -649,11 +751,22 @@ export function groupsForNode(node: AnyNode): { curated: FieldGroup[]; rest: Fie
 }
 
 export function optionsFor(node: AnyNode, spec: FieldSpec): string[] {
-  if (spec.options && spec.options.length > 0) return [...spec.options]
+  const opciones: string[] = [...(spec.options ?? [])]
+
   if (spec.fromSchema && spec.path) {
-    return enumOptionsFor(node.type, spec.path) ?? (typeof readPath(node, spec.path) === "string" ? [String(readPath(node, spec.path))] : [])
+    for (const delEsquema of enumOptionsFor(node.type, spec.path) ?? []) {
+      if (!opciones.includes(delEsquema)) opciones.push(delEsquema)
+    }
   }
-  return []
+
+  // Un valor legacy que ya no está en el enum tiene que poder seguir viéndose
+  // y seleccionándose: si no, el select aparece vacío al abrir el panel.
+  const actual = spec.path ? readPath(node, spec.path) : undefined
+  if (typeof actual === "string" && actual && !opciones.includes(actual)) {
+    opciones.push(actual)
+  }
+
+  return opciones
 }
 
 export function displayValue(node: AnyNode, spec: FieldSpec): number | string {
@@ -661,6 +774,16 @@ export function displayValue(node: AnyNode, spec: FieldSpec): number | string {
   const raw = spec.path ? readPath(node, spec.path) : undefined
   if (typeof raw === "number") return spec.scale ? raw * spec.scale : raw
   if (typeof raw === "boolean") return raw ? "sí" : "no"
+
+  if (raw == null) {
+    // Campo opcional sin escribir: se muestra el valor con el que el visor lo
+    // dibuja (default del schema o fallback del catálogo), no una raya.
+    const porDefecto = spec.path ? schemaDefaultFor(node.type, spec.path) : undefined
+    const valor = porDefecto ?? spec.fallback
+    if (typeof valor === "number") return spec.scale ? valor * spec.scale : valor
+    if (typeof valor === "string") return valor
+  }
+
   if (raw == null) return "—"
   if (Array.isArray(raw)) return `${raw.length}`
   if (typeof raw === "object") return "{…}"

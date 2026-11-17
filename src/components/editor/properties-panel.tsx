@@ -311,7 +311,9 @@ function Row({
     setDraft(
       typeof shown === "number"
         ? String(Number(shown.toFixed(field.precision ?? 3)))
-        : shown
+        : shown === "—"
+          ? ""
+          : shown
     );
     // El frame se cancela al desmontar o al salir del modo edición: si no, el
     // callback queda pendiente sobre un `inputRef` ya nulo.
@@ -342,30 +344,48 @@ function Row({
 
   if (field.kind === "enum") {
     const options = optionsFor(node, field);
-    if (options.length === 0) return <MetricRow field={field} shown={shown} />;
-    return (
-      <div className={s.propsRow}>
-        <span className={s.propsLabel}>{field.label}</span>
-        <select
-          aria-label={field.label}
-          className={s.propsSelect}
-          onChange={(e) => onWrite(field, e.target.value)}
-          value={String(shown)}
-        >
-          {options.map((option) => (
-            <option key={option} value={option}>
-              {option}
-            </option>
-          ))}
-        </select>
-        <span />
-      </div>
-    );
+
+    // Toda opción que exista en el schema se dibuja, aunque el nodo no tenga
+    // el campo: antes un enum sin opciones se convertía en una fila muerta.
+    if (options.length > 0) {
+      const actual = String(shown);
+      const seleccionado = options.includes(actual) ? actual : "";
+      return (
+        <div className={s.propsRow}>
+          <span className={s.propsLabel}>{field.label}</span>
+          <span className={s.propsSelectWrap}>
+            <select
+              aria-label={field.label}
+              className={s.propsSelect}
+              onChange={(e) => onWrite(field, e.target.value)}
+              value={seleccionado}
+            >
+              {seleccionado === "" ? (
+                <option disabled value="">
+                  Sin definir
+                </option>
+              ) : null}
+              {options.map((option) => (
+                <option key={option} value={option}>
+                  {option}
+                </option>
+              ))}
+            </select>
+          </span>
+          <span />
+        </div>
+      );
+    }
+    // Sin opciones conocidas cae al editor de texto: mejor escribir un valor
+    // que dejar el campo sin forma de cambiarlo.
   }
 
-  if (field.kind === "text" || field.kind === "color") {
+  if (field.kind === "text" || field.kind === "color" || field.kind === "enum") {
     const raw = readPath(node, field.path ?? []);
-    if (typeof raw !== "string") return <MetricRow field={field} shown={shown} />;
+    const valor = typeof raw === "string" ? raw : String(shown);
+    // Un texto vacío se veía como una celda en blanco; con esto se entiende que
+    // el campo existe y se puede completar.
+    const mostrar = valor === "—" ? "Sin definir" : valor;
     if (field.kind === "color") {
       return (
         <div className={s.propsRow}>
@@ -376,7 +396,7 @@ function Row({
               className={s.propsColor}
               onChange={(e) => onWrite(field, e.target.value)}
               type="color"
-              value={/^#[0-9a-f]{6}$/i.test(raw) ? raw : "#ffffff"}
+              value={/^#[0-9a-f]{6}$/i.test(valor) ? valor : "#ffffff"}
             />
             {editing ? (
               <input
@@ -407,7 +427,7 @@ function Row({
                 onClick={() => setEditing(true)}
                 type="button"
               >
-                {raw}
+                {valor}
               </button>
             )}
           </span>
@@ -443,7 +463,7 @@ function Row({
             onClick={() => setEditing(true)}
             type="button"
           >
-            {shown}
+            {mostrar}
           </button>
         )}
         <span />

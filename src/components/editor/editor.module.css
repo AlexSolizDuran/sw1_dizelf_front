@@ -507,7 +507,8 @@
 
 .propsCols {
   display: grid;
-  grid-template-columns: 1fr 96px 26px;
+  /* La columna de valor tiene que caber los enums largos ("base-craftsman"). */
+  grid-template-columns: minmax(0, 1fr) 118px 22px;
   gap: 6px;
   border-bottom: 1px solid var(--border);
   padding: 5px 10px;
@@ -549,7 +550,7 @@
 .propsRow {
   display: grid;
   min-height: 24px;
-  grid-template-columns: 1fr 96px 26px;
+  grid-template-columns: minmax(0, 1fr) 118px 22px;
   align-items: center;
   gap: 6px;
   padding: 1px 10px;
@@ -612,10 +613,36 @@
   background-color: color-mix(in oklch, var(--accent) 60%, transparent);
 }
 
+/* Un select sin flecha parece texto de solo lectura: la flecha es la señal de
+   que se puede abrir y elegir otra opción. */
+.propsSelectWrap {
+  position: relative;
+  display: block;
+  min-width: 0;
+}
+
+.propsSelectWrap::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  right: 5px;
+  width: 0;
+  height: 0;
+  margin-top: -1px;
+  border-left: 3px solid transparent;
+  border-right: 3px solid transparent;
+  border-top: 4px solid var(--muted-foreground);
+  pointer-events: none;
+}
+
 .propsSelect {
   appearance: none;
   cursor: pointer;
+  padding-right: 16px;
+  overflow: hidden;
   text-align: left;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .propsUnit {
