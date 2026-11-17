@@ -12,6 +12,7 @@ import {
   Scan,
   Sun,
 } from "lucide-react";
+import { BotonModeloAr } from "./boton-modelo-ar";
 import { IndicadorPresencia } from "./indicador-presencia";
 import { PanelColaboradores } from "./panel-colaboradores";
 import { PanelVersiones } from "./panel-versiones";
@@ -189,13 +190,15 @@ export function EditorNavbar({
               type="button"
             >
               <Save className="h-3.5 w-3.5" />
-            </button>
+            </button>            <PanelVersiones
+                alRestaurar={onRestaurar}
+                puedeEditar
+                proyectoId={proyectoId}
+              />
 
-            <PanelVersiones
-              alRestaurar={onRestaurar}
-              puedeEditar
-              proyectoId={proyectoId}
-            />
+            {/* Publica el GLB que consume la AR. Solo con edición: publicar
+                cambia lo que ve el móvil, igual que guardar cambia el plano. */}
+            <BotonModeloAr proyectoId={proyectoId} />
           </>
         )}
 
