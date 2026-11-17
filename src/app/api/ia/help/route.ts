@@ -1,6 +1,10 @@
 import type { NextRequest } from "next/server";
 import { guardiaIA } from "@/lib/ia/server/guard";
 import { chatConCadena } from "@/lib/ia/server/fallback";
+import {
+  calcularConsumo,
+  registrarConsumoDiferido,
+} from "@/lib/ia/server/consumo";
 import { ErrorProveedor, sanitizarMensaje } from "@/lib/ia/server/errors";
 import { buildHelpSystemPrompt, esPregunta, parseHelpJson, type HelpProjectItem } from "@/lib/ia/helpPrompt";
 import { searchHelp } from "@/lib/ayuda/knowledge";
@@ -89,17 +93,33 @@ export async function POST(request: NextRequest) {
     typeof crudo.pagina === "string" ? crudo.pagina.trim().slice(0, 200) : "/proyectos";
 
   const systemPrompt = buildHelpSystemPrompt(proyectos, pagina);
+  const mensajesConSistema: IAChatMessage[] = [
+    { role: "system", content: systemPrompt },
+    ...messages,
+  ];
 
   try {
     const resultado = await chatConCadena({
       provider: IA_DEFAULT_PROVIDER,
       model: modeloPorDefecto(IA_DEFAULT_PROVIDER),
-      messages: [{ role: "system", content: systemPrompt }, ...messages],
+      messages: mensajesConSistema,
       tools: [],
       httpReferer:
         request.headers.get("origin") ??
         process.env.NEXT_PUBLIC_APP_URL ??
         "http://localhost:3000",
+    });
+
+    const consumo = calcularConsumo({
+      respuesta: resultado.respuesta,
+      mensajes: mensajesConSistema,
+      tools: [],
+    });
+    registrarConsumoDiferido(request, {
+      origen: "ayuda",
+      proveedor: resultado.proveedorUsado,
+      modelo: resultado.modeloUsado,
+      ...consumo,
     });
 
     const parsed = parseHelpJson(resultado.respuesta.content);
@@ -128,6 +148,7 @@ export async function POST(request: NextRequest) {
       proveedorUsado: resultado.proveedorUsado,
       modeloUsado: resultado.modeloUsado,
       fallbacks: resultado.fallbacks,
+      usage: resultado.respuesta.usage,
     });
   } catch (error: unknown) {
     const mensaje = sanitizarMensaje(

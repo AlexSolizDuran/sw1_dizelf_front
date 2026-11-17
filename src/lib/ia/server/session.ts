@@ -64,7 +64,9 @@ export function baseUrlBackend(): string {
   return (candidatas[0] ?? "http://localhost:3001").replace(/\/+$/, "");
 }
 
-function leerToken(request: Pick<NextRequest, "cookies">): string | null {
+export function leerTokenSesion(
+  request: Pick<NextRequest, "cookies">
+): string | null {
   const seguro = request.cookies?.get?.(COOKIE_SESION)?.value?.trim();
   if (seguro) return seguro;
   const legado = request.cookies?.get?.(COOKIE_LEGADA)?.value?.trim();
@@ -107,7 +109,7 @@ function guardarEnCache(clave: string, usuario: SesionUsuario): void {
 export async function leerSesion(
   request: Pick<NextRequest, "cookies">
 ): Promise<SesionUsuario> {
-  const token = leerToken(request);
+  const token = leerTokenSesion(request);
   if (!token) {
     throw new ErrorSesion("sin-sesion", "Iniciá sesión para usar el asistente.");
   }

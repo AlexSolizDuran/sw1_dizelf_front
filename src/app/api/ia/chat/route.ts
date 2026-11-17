@@ -1,6 +1,10 @@
 import type { NextRequest } from "next/server";
 import { guardiaIA } from "@/lib/ia/server/guard";
 import { chatConCadena } from "@/lib/ia/server/fallback";
+import {
+  calcularConsumo,
+  registrarConsumoDiferido,
+} from "@/lib/ia/server/consumo";
 import { ErrorProveedor, sanitizarMensaje } from "@/lib/ia/server/errors";
 import { normalizarTools } from "@/lib/ia/server/tools";
 import { esProveedorIA, modeloPorDefecto } from "@/lib/ia/config";
@@ -105,6 +109,18 @@ export async function POST(request: NextRequest) {
         request.headers.get("origin") ??
         process.env.NEXT_PUBLIC_APP_URL ??
         "http://localhost:3000",
+    });
+
+    const consumo = calcularConsumo({
+      respuesta: resultado.respuesta,
+      mensajes: messages,
+      tools,
+    });
+    registrarConsumoDiferido(request, {
+      origen: "escena",
+      proveedor: resultado.proveedorUsado,
+      modelo: resultado.modeloUsado,
+      ...consumo,
     });
 
     return Response.json({
