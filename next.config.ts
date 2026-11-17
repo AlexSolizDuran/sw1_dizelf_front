@@ -115,6 +115,13 @@ const ICONIFY_ORIGINS = [
  */
 const MODELOS_ORIGIN = (process.env.MODELOS_ORIGIN || "").replace(/\/+$/, "");
 
+if (process.env.NEXT_PHASE === "phase-production-build" && !MODELOS_ORIGIN) {
+  console.warn(
+    "[CSP] Falta MODELOS_ORIGIN: la subida del GLB de AR va a quedar bloqueada " +
+      "por connect-src. Cargala (host del bucket, sin '/' final) y volvé a construir."
+  );
+}
+
 /**
  * `'unsafe-eval'` solo en desarrollo.
  *
