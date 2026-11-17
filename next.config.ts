@@ -100,6 +100,22 @@ const ICONIFY_ORIGINS = [
 ].join(" ");
 
 /**
+ * Origen del almacenamiento de modelos AR (Neon Object Storage).
+ *
+ * El GLB no se sube a través del backend: el editor pide una URL prefirmada y
+ * el navegador hace el `PUT` DIRECTO contra el bucket, porque el proxy de
+ * Vercel corta los cuerpos grandes. Es otro origen, así que sin esta línea en
+ * `connect-src` el navegador aborta el `PUT` antes de enviar el primer byte y
+ * el síntoma es el mensaje genérico "No se pudo conectar con el almacenamiento
+ * del modelo. Revisá tu conexión" — una violación de CSP, no un problema de
+ * red. En el panel de red se ve la petición con 0 bytes transferidos.
+ *
+ * Se hornea en el build como el resto del CSP: si cambia, hay que REDEPLOYAR.
+ * Opcional: si falta, el editor funciona igual salvo publicar el modelo AR.
+ */
+const MODELOS_ORIGIN = (process.env.MODELOS_ORIGIN || "").replace(/\/+$/, "");
+
+/**
  * `'unsafe-eval'` solo en desarrollo.
  *
  * En `next dev`, React usa `eval()` para Fast Refresh, HMR y reconstruir
@@ -157,10 +173,11 @@ const TIENDAS_IMG = [
  *                   URI cae bajo `connect-src`.
  *   `DRACO_CDN`   → decoder Draco (ver arriba).
  *   `KTX2_CDN`    → transcoder KTX2 (ver arriba), también en `worker-src`.
+ *   `MODELOS_ORIGIN` → subida del GLB de AR con `PUT` prefirmado (ver arriba).
  */
 const CSP = [
   "default-src 'self'",
-  `connect-src 'self' data: ${API_WS_URL} ${ASSETS_ORIGIN} ${ASSETS_CDN} ${DRACO_CDN} ${KTX2_CDN} ${ICONIFY_ORIGINS}`,
+  `connect-src 'self' data: ${API_WS_URL} ${ASSETS_ORIGIN} ${ASSETS_CDN} ${DRACO_CDN} ${KTX2_CDN} ${ICONIFY_ORIGINS} ${MODELOS_ORIGIN}`.replace(/ +/g, " "),
   `img-src 'self' data: blob: ${ASSETS_ORIGIN} ${ASSETS_CDN} ${TIENDAS_IMG}`,
   `font-src 'self' data: ${ASSETS_CDN}`,
   // Las imágenes guía del editor se sirven como blob: y some los .glb y las
