@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Plus } from "lucide-react";
 import { Navbar } from "@/components/layout/navbar";
@@ -38,7 +38,6 @@ export default function ProyectosPage() {
     gestionarId,
     cerrarGestionar,
   } = useUiProyectosStore();
-  const [promptInicial, setPromptInicial] = useState("");
 
   useEffect(() => {
     if (isInitialized && !isAuthenticated) {
@@ -66,9 +65,10 @@ export default function ProyectosPage() {
 
   const hayProyectos = proyectos.length > 0;
   const totalPaginas = Math.max(1, Math.ceil(total / limite));
+  const creados = proyectos.filter((p) => p.miRol === "CREADOR");
+  const colaboraciones = proyectos.filter((p) => p.miRol !== "CREADOR");
 
   const nuevoDiseno = () => {
-    setPromptInicial("");
     abrirCrear("normal");
   };
 
@@ -98,26 +98,10 @@ export default function ProyectosPage() {
         </div>
 
         <div className="mt-8">
-          <IaCreationBar
-            onEnviarAsistido={(prompt) => {
-              setPromptInicial(prompt);
-              abrirCrear(prompt.trim() !== "" ? "prompt" : "normal");
-            }}
-          />
+          <IaCreationBar />
         </div>
 
-        <section aria-label="Proyectos recientes">
-          <div className="flex justify-between items-end mb-6">
-            <h2 className="text-xl font-bold text-[#2B2A28]">
-              Proyectos recientes
-              {total > 0 && (
-                <span className="ml-2 text-sm font-medium text-[#7A6D63]">
-                  ({total})
-                </span>
-              )}
-            </h2>
-          </div>
-
+        <section aria-label="Proyectos">
           <ProyectosEstados
             isLoading={isLoading}
             error={error}
@@ -126,7 +110,49 @@ export default function ProyectosPage() {
             onCrear={nuevoDiseno}
           />
 
-          {hayProyectos && <ProyectosGrid proyectos={proyectos} />}
+          {!isLoading && !error && hayProyectos && (
+            <div className="space-y-12">
+              <section aria-label="Mis proyectos">
+                <div className="mb-6">
+                  <h2 className="text-xl font-bold text-[#2B2A28]">
+                    Mis proyectos
+                  </h2>
+                  <p className="mt-1 text-xs text-[#7A6D63]">
+                    Proyectos que creaste vos.
+                  </p>
+                </div>
+                {creados.length > 0 ? (
+                  <ProyectosGrid proyectos={creados} />
+                ) : (
+                  <p className="rounded-xl border border-dashed border-[#E5DFD7] bg-white/60 px-4 py-10 text-center text-xs text-[#7A6D63]">
+                    {totalPaginas > 1
+                      ? "No hay proyectos creados por vos en esta página."
+                      : "Todavía no creaste ningún proyecto. Usá la barra de arriba para generar uno."}
+                  </p>
+                )}
+              </section>
+
+              <section aria-label="Proyectos donde colaboro">
+                <div className="mb-6">
+                  <h2 className="text-xl font-bold text-[#2B2A28]">
+                    Compartidos conmigo
+                  </h2>
+                  <p className="mt-1 text-xs text-[#7A6D63]">
+                    Proyectos de otras personas donde sos colaborador.
+                  </p>
+                </div>
+                {colaboraciones.length > 0 ? (
+                  <ProyectosGrid proyectos={colaboraciones} />
+                ) : (
+                  <p className="rounded-xl border border-dashed border-[#E5DFD7] bg-white/60 px-4 py-10 text-center text-xs text-[#7A6D63]">
+                    {totalPaginas > 1
+                      ? "No hay proyectos compartidos con vos en esta página."
+                      : "Todavía no te compartieron ningún proyecto."}
+                  </p>
+                )}
+              </section>
+            </div>
+          )}
 
           {totalPaginas > 1 && (
             <div className="mt-8 flex items-center justify-center gap-2">
@@ -160,7 +186,6 @@ export default function ProyectosPage() {
       <CrearProyectoModal
         open={crearAbierto}
         onClose={cerrarCrear}
-        promptInicial={promptInicial}
         modoInicial={crearModo}
       />
       <GestionarProyectoModal

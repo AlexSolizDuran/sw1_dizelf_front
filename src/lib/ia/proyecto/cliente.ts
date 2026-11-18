@@ -74,12 +74,13 @@ export async function cargarPerfilesProyecto(): Promise<PerfilesProyectoRespuest
 
 export async function solicitarPlanProyecto(input: {
   prompt: string;
-  perfil: string;
+  /** Si se omite, el servidor usa el perfil por defecto. */
+  perfil?: string;
   imagen: File | null;
 }): Promise<PlanGenerado> {
   const formulario = new FormData();
   formulario.append("prompt", input.prompt);
-  formulario.append("perfil", input.perfil);
+  if (input.perfil) formulario.append("perfil", input.perfil);
   if (input.imagen !== null) {
     formulario.append("imagen", input.imagen, input.imagen.name);
   }

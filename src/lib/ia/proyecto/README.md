@@ -53,8 +53,16 @@ gratuito`). Si falla el gratuito no se pasa a uno pago.
 
 - Ambientes rectangulares (el normalizador toma el rectángulo envolvente).
 - Hasta 8 ambientes por nivel (`create_rooms` acepta 8 por llamada).
-- Hasta 3 niveles.
+- Hasta 3 niveles. Se generan solo los que pida el texto o muestre la imagen:
+  no hay un mínimo de 2 plantas.
 - Sin escaleras: se agregan después con `create_stair`.
+
+## Solo imagen = una planta
+
+Cuando el pedido es solo una imagen, el endpoint conserva únicamente el nivel 0
+y descarta los demás. Los modelos tienden a inventar una segunda planta (o una
+variante del mismo plano) aunque la imagen muestre una sola. El recorte queda
+anotado en `notas`. Si se necesitan más niveles, hay que pedirlos en el texto.
 
 ## Llamada al modelo
 

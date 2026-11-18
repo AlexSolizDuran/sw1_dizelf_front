@@ -311,7 +311,7 @@ export function CrearProyectoModal({
       <div className="mt-4">
         <Input
           label="Nombre del proyecto"
-          placeholder="Ej. Casa de 2 pisos"
+          placeholder="Ej. Casa de un piso"
           value={nombre}
           onChange={(e) => setNombre(e.target.value)}
           maxLength={100}
@@ -360,7 +360,7 @@ export function CrearProyectoModal({
             rows={4}
             maxLength={4000}
             disabled={isLoading}
-            placeholder="Casa de 2 pisos con 3 dormitorios, cocina integrada y patio. O adjuntá una imagen del croquis."
+            placeholder="Casa con 3 dormitorios, cocina integrada y patio. O adjuntá una imagen del croquis."
             className="mt-1.5 w-full bg-[#FAF7F7] text-sm text-[#2B2A28] placeholder-[#A3978E] border border-[#E5DFD7] focus:border-[#8C432A] rounded-lg p-3 outline-none transition-colors disabled:opacity-60"
           />
 

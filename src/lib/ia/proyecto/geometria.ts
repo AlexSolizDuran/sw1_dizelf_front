@@ -26,6 +26,10 @@ export const LADO_MAXIMO = 28;
 export const LIMITE_COORDENADA = 80;
 const TOLERANCIA_AREA = 0.02;
 
+/** Nota que se agrega al plan cuando se descartan niveles inventados. */
+export const NOTA_NIVEL_UNICO =
+  "La imagen se interpretó como una sola planta; se descartaron los niveles adicionales.";
+
 type Rect = { x0: number; z0: number; x1: number; z1: number };
 
 export interface ResultadoPlan {
@@ -295,5 +299,34 @@ export function normalizarPlan(plan: PlanProyecto): ResultadoPlan {
     },
     problemas,
     avisos,
+  };
+}
+
+/**
+ * Deja un único nivel en el plan.
+ *
+ * Se aplica cuando el pedido fue **solo una imagen**: el contrato permite hasta
+ * 3 niveles, así que el esquema no impide que el modelo invente una segunda
+ * planta. Se conserva el nivel 0 (la planta que describe la imagen) y se anota
+ * el recorte en `notas` para que se vea en el editor.
+ */
+export function limitarANivelUnico(plan: PlanProyecto): {
+  plan: PlanProyecto;
+  descartados: number;
+} {
+  if (plan.niveles.length <= 1) return { plan, descartados: 0 };
+
+  const descartados = plan.niveles.length - 1;
+  const notas = [plan.notas?.trim(), NOTA_NIVEL_UNICO]
+    .filter(Boolean)
+    .join(" ");
+
+  return {
+    plan: {
+      ...plan,
+      niveles: plan.niveles.slice(0, 1),
+      ...(notas ? { notas } : {}),
+    },
+    descartados,
   };
 }

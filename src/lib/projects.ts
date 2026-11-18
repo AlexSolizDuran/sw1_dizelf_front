@@ -26,6 +26,28 @@ export async function apiListarProyectos(
   });
 }
 
+/** Máximo de proyectos por página que acepta el backend. */
+const LIMITE_MAXIMO_PROYECTOS = 50;
+
+/**
+ * Nombres de todos los proyectos del usuario, paginando de a 50.
+ *
+ * La barra IA lo usa para no repetir títulos al crear un proyecto. Si falla,
+ * el llamador cae a la página que ya tiene cargada el store.
+ */
+export async function apiListarNombresProyectos(): Promise<string[]> {
+  const nombres: string[] = [];
+  for (let pagina = 1; pagina <= 40; pagina += 1) {
+    const res = await apiListarProyectos(pagina, LIMITE_MAXIMO_PROYECTOS);
+    const datos = res.datos ?? [];
+    for (const proyecto of datos) nombres.push(proyecto.nombre);
+    if (datos.length < LIMITE_MAXIMO_PROYECTOS || nombres.length >= res.total) {
+      break;
+    }
+  }
+  return nombres;
+}
+
 export async function apiCrearProyecto(
   input: CrearProyectoInput
 ): Promise<Proyecto> {

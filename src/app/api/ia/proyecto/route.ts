@@ -8,7 +8,7 @@ import {
   planProyectoSchema,
   type PlanProyecto,
 } from "@/lib/ia/proyecto/esquema";
-import { normalizarPlan } from "@/lib/ia/proyecto/geometria";
+import { normalizarPlan, limitarANivelUnico } from "@/lib/ia/proyecto/geometria";
 import {
   cadenaDePerfiles,
   esPerfilProyecto,
@@ -46,7 +46,7 @@ type Interpretacion =
   | { ok: true; plan: PlanProyecto; avisos: string[] }
   | { ok: false; problemas: string[] };
 
-function interpretar(texto: string): Interpretacion {
+function interpretar(texto: string, soloUnNivel = false): Interpretacion {
   const crudo = extraerJson(texto);
   if (crudo === null) {
     return {
@@ -66,6 +66,22 @@ function interpretar(texto: string): Interpretacion {
   const normalizado = normalizarPlan(validado.data);
   if (!normalizado.ok) {
     return { ok: false, problemas: normalizado.problemas };
+  }
+
+  // Solo imagen: el modelo suele inventar una segunda planta. El esquema la
+  // permite, así que se recorta acá y se deja constancia en `notas`.
+  if (soloUnNivel) {
+    const limitado = limitarANivelUnico(normalizado.plan);
+    if (limitado.descartados > 0) {
+      return {
+        ok: true,
+        plan: limitado.plan,
+        avisos: [
+          ...normalizado.avisos,
+          `Se descartaron ${limitado.descartados} nivel(es) porque el pedido era solo una imagen.`,
+        ],
+      };
+    }
   }
 
   return {
@@ -170,6 +186,10 @@ export async function POST(request: NextRequest) {
 
   const texto = promptEfectivo(prompt, imagen !== null);
 
+  // Sin texto, la imagen se interpreta como una sola planta. Evita que el
+  // modelo agregue una segunda planta que nadie pidió.
+  const soloImagen = prompt.length === 0 && imagen !== null;
+
   let imagenDataUrl: string | undefined;
   if (imagen !== null) {
     try {
@@ -212,7 +232,7 @@ export async function POST(request: NextRequest) {
     anotarConsumo(consumos, primera);
     let modeloUsado = primera.modelo ?? modelo;
 
-    let interpretado = interpretar(primera.texto);
+    let interpretado = interpretar(primera.texto, soloImagen);
 
     if (!interpretado.ok) {
       // Una única reparación con los errores concretos.
@@ -228,7 +248,7 @@ export async function POST(request: NextRequest) {
         });
         anotarConsumo(consumos, reparado);
         modeloUsado = reparado.modelo ?? modelo;
-        interpretado = interpretar(reparado.texto);
+        interpretado = interpretar(reparado.texto, soloImagen);
         if (!interpretado.ok) {
           planInvalido = { problemas: interpretado.problemas };
           break;

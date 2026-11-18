@@ -50,9 +50,9 @@ export function Modal({
         className="absolute inset-0 bg-[#2B2A28]/40 cursor-default"
       />
       <div
-        className={`relative w-full ${maxWidth} bg-white rounded-2xl border border-[#EDE6DD] p-6 sm:p-7`}
+        className={`relative flex max-h-[calc(100dvh-2rem)] w-full ${maxWidth} flex-col bg-white rounded-2xl border border-[#EDE6DD] p-6 sm:p-7`}
       >
-        <div className="flex items-start justify-between gap-4">
+        <div className="flex shrink-0 items-start justify-between gap-4">
           <div>
             <h2 className="text-lg font-bold text-[#2B2A28]">{title}</h2>
             {subtitle && (
@@ -68,7 +68,10 @@ export function Modal({
             <X className="w-4 h-4" />
           </button>
         </div>
-        <div className="mt-5">{children}</div>
+        {/* El contenido scrollea solo; el header y la X quedan fijos. */}
+        <div className="mt-5 min-h-0 overflow-y-auto overscroll-contain pr-1">
+          {children}
+        </div>
       </div>
     </div>
   );
