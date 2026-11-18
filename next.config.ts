@@ -204,6 +204,12 @@ const nextConfig: NextConfig = {
   reactCompiler: true,
 
   /**
+   * Marca de la actualización de seguridad aplicada por `next upgrade`.
+   * Next lo usa para no volver a sugerir la misma actualización.
+   */
+  experimental: { agentUpgrade: "security" },
+
+  /**
    * `NEXT_PUBLIC_WS_URL` la calcula este archivo, no el panel de Vercel.
    *
    * `env` inlinea el valor en el bundle del cliente igual que un `NEXT_PUBLIC_*`
