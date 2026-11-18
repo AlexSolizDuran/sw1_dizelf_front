@@ -48,6 +48,14 @@ cerrar el turno.
 - El historial vive en `localStorage` con la clave
   `dizelf.ayuda.chat:<usuarioId>`; no hay persistencia en base de datos.
 
+## Generación de proyectos
+
+La creación asistida desde el dashboard (`/proyectos`) no usa `agentLoop`. El
+modal pide un plan JSON a `/api/ia/proyecto`, crea el proyecto y deja el plan en
+`sessionStorage`; el runner `GeneracionProyecto` del editor lo ejecuta con
+`create_rooms`. La voz solo transcribe al campo del prompt. Ver
+`lib/ia/proyecto/README.md`.
+
 ## Backend
 
 `POST /api/ia/help` reutiliza `guardiaIA` (sesión + límite por usuario) y

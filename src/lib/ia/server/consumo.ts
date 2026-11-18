@@ -25,7 +25,7 @@ import {
  * se deja un warning; el chat nunca se rompe por el registro.
  */
 
-export type OrigenConsumo = "escena" | "ayuda";
+export type OrigenConsumo = "escena" | "ayuda" | "proyecto";
 
 export interface DatosConsumo {
   origen: OrigenConsumo;

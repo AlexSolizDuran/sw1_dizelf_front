@@ -30,8 +30,14 @@ export default function ProyectosPage() {
   const isInitialized = useAuthStore((s) => s.isInitialized);
   const { proyectos, total, pagina, limite, isLoading, error, cargar } =
     useProyectosStore();
-  const { crearAbierto, abrirCrear, cerrarCrear, gestionarId, cerrarGestionar } =
-    useUiProyectosStore();
+  const {
+    crearAbierto,
+    crearModo,
+    abrirCrear,
+    cerrarCrear,
+    gestionarId,
+    cerrarGestionar,
+  } = useUiProyectosStore();
   const [promptInicial, setPromptInicial] = useState("");
 
   useEffect(() => {
@@ -63,7 +69,7 @@ export default function ProyectosPage() {
 
   const nuevoDiseno = () => {
     setPromptInicial("");
-    abrirCrear();
+    abrirCrear("normal");
   };
 
   return (
@@ -95,7 +101,7 @@ export default function ProyectosPage() {
           <IaCreationBar
             onEnviarAsistido={(prompt) => {
               setPromptInicial(prompt);
-              abrirCrear();
+              abrirCrear(prompt.trim() !== "" ? "prompt" : "normal");
             }}
           />
         </div>
@@ -155,6 +161,7 @@ export default function ProyectosPage() {
         open={crearAbierto}
         onClose={cerrarCrear}
         promptInicial={promptInicial}
+        modoInicial={crearModo}
       />
       <GestionarProyectoModal
         proyectoId={gestionarId}

@@ -13,6 +13,7 @@ import type { DocumentoProyecto } from "@/types/proyecto";
 import { BuildTab } from "./build-tab";
 import { EditorNavbar, type TonoGuardado } from "./editor-navbar";
 import { EstructuraTab } from "./estructura-tab";
+import { GeneracionProyecto } from "./generacion-proyecto";
 import { LevelBootstrap } from "./level-bootstrap";
 import { MaterialesTab } from "./materiales-tab";
 import { MueblesTab } from "./muebles-tab";
@@ -287,6 +288,16 @@ export function EditorShell({ proyectoId, nombreProyecto }: Props) {
           sidebarTabs={sidebarTabs as never}
         />
       )}
+
+      {/* Runner del plano generado desde el modal. Espera a que el loader y la
+          sincronización estén listos para que `sync:inicial` no lo pise. */}
+      <GeneracionProyecto
+        proyectoId={proyectoId}
+        puedeEditar={!soloLectura}
+        listo={
+          registroListo && !escenaCargando && sync.estado === "listo"
+        }
+      />
 
       {/* Error definitivo de sync (sesión, acceso o expulsión): reconectar no
           sirve, así que se avisa sin bloquear el resto de la UI. */}

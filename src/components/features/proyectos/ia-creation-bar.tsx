@@ -10,15 +10,20 @@ interface IaCreationBarProps {
 
 /**
  * Barra IA del modelo Dashboard: input + adjuntar + voz + enviar.
- * Enviar con texto abre el modal crear en modo asistido (prompt precargado).
+ *
+ * Cada control abre el mismo modal con una intención distinta: el texto lo
+ * precarga, el clip dispara el selector de imagen y el micrófono deja el foco
+ * en el prompt con el dictado listo.
  */
 export function IaCreationBar({ onEnviarAsistido }: IaCreationBarProps) {
   const abrirCrear = useUiProyectosStore((s) => s.abrirCrear);
   const [valor, setValor] = useState("");
 
   const handleEnviar = () => {
-    if (onEnviarAsistido) onEnviarAsistido(valor.trim());
-    else abrirCrear();
+    const limpio = valor.trim();
+    if (onEnviarAsistido) onEnviarAsistido(limpio);
+    else abrirCrear(limpio !== "" ? "prompt" : "normal");
+    setValor("");
   };
 
   return (
@@ -38,7 +43,7 @@ export function IaCreationBar({ onEnviarAsistido }: IaCreationBarProps) {
           <button
             type="button"
             aria-label="Adjuntar imagen"
-            onClick={abrirCrear}
+            onClick={() => abrirCrear("imagen")}
             className="p-2 hover:bg-[#F2ECE3] rounded-full transition-colors"
           >
             <Paperclip className="w-5 h-5" />
@@ -46,7 +51,7 @@ export function IaCreationBar({ onEnviarAsistido }: IaCreationBarProps) {
           <button
             type="button"
             aria-label="Dictar por voz"
-            onClick={abrirCrear}
+            onClick={() => abrirCrear("voz")}
             className="p-2 hover:bg-[#F2ECE3] rounded-full transition-colors"
           >
             <Mic className="w-5 h-5" />
