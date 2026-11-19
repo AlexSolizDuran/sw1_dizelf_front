@@ -13,6 +13,13 @@ import type {
 } from "../types";
 import { ErrorProveedor, errorHttp, fetchConTimeout } from "../server/errors";
 
+/**
+ * Modelos de pago que queremos ofrecer siempre en el desplegable del chat.
+ * El listado de OpenRouter se filtra a `*:free`, así que Haiku no aparecería
+ * aunque la API responda; se agregan de forma explícita.
+ */
+const MODELOS_DESTACADOS = ["anthropic/claude-haiku-5.5"] as const;
+
 function toJsonArgs(args: string | Record<string, unknown> | undefined): string {
   if (typeof args === "string") return args;
   return JSON.stringify(args ?? {});
@@ -51,7 +58,7 @@ export async function health(): Promise<HealthResult> {
 }
 
 export async function listModels(): Promise<string[]> {
-  const modelos = new Set<string>([OPENROUTER_DEFAULT_MODEL]);
+  const modelos = new Set<string>([OPENROUTER_DEFAULT_MODEL, ...MODELOS_DESTACADOS]);
   if (OPENROUTER_API_KEYS.length === 0) return [...modelos];
 
   try {
