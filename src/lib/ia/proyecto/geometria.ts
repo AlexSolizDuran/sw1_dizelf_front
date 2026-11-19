@@ -1,5 +1,6 @@
 import {
   ALTURA_POR_DEFECTO,
+  MAX_NIVELES,
   type AmbientePlan,
   type NivelPlan,
   type PlanProyecto,
@@ -26,9 +27,14 @@ export const LADO_MAXIMO = 28;
 export const LIMITE_COORDENADA = 80;
 const TOLERANCIA_AREA = 0.02;
 
-/** Nota que se agrega al plan cuando se descartan niveles inventados. */
-export const NOTA_NIVEL_UNICO =
-  "La imagen se interpretó como una sola planta; se descartaron los niveles adicionales.";
+/**
+ * Nota por defecto cuando se descartan niveles que no correspondían.
+ *
+ * No dice "una sola planta" a propósito: la cantidad correcta la define la
+ * imagen (1, 2 o 3), no una regla fija.
+ */
+export const NOTA_NIVELES_AJUSTADOS =
+  "Se ajustó la cantidad de niveles a la que muestra la imagen o indica el pedido.";
 
 type Rect = { x0: number; z0: number; x1: number; z1: number };
 
@@ -303,30 +309,83 @@ export function normalizarPlan(plan: PlanProyecto): ResultadoPlan {
 }
 
 /**
- * Deja un único nivel en el plan.
+ * Deja exactamente `max` niveles en el plan (o los que haya, si son menos).
  *
- * Se aplica cuando el pedido fue **solo una imagen**: el contrato permite hasta
- * 3 niveles, así que el esquema no impide que el modelo invente una segunda
- * planta. Se conserva el nivel 0 (la planta que describe la imagen) y se anota
- * el recorte en `notas` para que se vea en el editor.
+ * La cantidad correcta la decide el pedido: la imagen cuando existe, o el texto
+ * cuando no. El esquema permite hasta 3 niveles, así que el modelo puede
+ * devolver más de los que muestra la imagen; acá se conservan los primeros
+ * (que ya vienen ordenados por `nivel`) y se anota el recorte en `notas` para
+ * que se vea en el editor.
  */
-export function limitarANivelUnico(plan: PlanProyecto): {
+export function limitarANiveles(
+  plan: PlanProyecto,
+  max: number,
+  nota: string = NOTA_NIVELES_AJUSTADOS
+): {
   plan: PlanProyecto;
   descartados: number;
 } {
-  if (plan.niveles.length <= 1) return { plan, descartados: 0 };
+  const limite = Math.min(MAX_NIVELES, Math.max(1, Math.trunc(max)));
+  if (plan.niveles.length <= limite) return { plan, descartados: 0 };
 
-  const descartados = plan.niveles.length - 1;
-  const notas = [plan.notas?.trim(), NOTA_NIVEL_UNICO]
-    .filter(Boolean)
-    .join(" ");
+  const descartados = plan.niveles.length - limite;
+  const notas = [plan.notas?.trim(), nota.trim()].filter(Boolean).join(" ");
 
   return {
     plan: {
       ...plan,
-      niveles: plan.niveles.slice(0, 1),
+      niveles: plan.niveles.slice(0, limite),
       ...(notas ? { notas } : {}),
     },
     descartados,
   };
+}
+
+export type AjusteNiveles =
+  | { ok: true; plan: PlanProyecto; descartados: number; aviso?: string }
+  | { ok: false; problemas: string[] };
+
+/**
+ * Hace que el plan tenga la cantidad de niveles esperada.
+ *
+ * Es la regla que aplica el endpoint después de normalizar:
+ * - sobran niveles → se recortan y se avisa (nunca se genera un piso de más);
+ * - faltan niveles → `ok: false` para pedir una reparación;
+ * - coincide → el plan pasa intacto.
+ *
+ * `hayImagen` solo cambia el texto de la nota: la cantidad ya vino resuelta por
+ * quien llama (imagen o texto).
+ */
+export function ajustarCantidadNiveles(
+  plan: PlanProyecto,
+  esperado: number,
+  hayImagen: boolean
+): AjusteNiveles {
+  const objetivo = Math.min(MAX_NIVELES, Math.max(1, Math.trunc(esperado)));
+  const generados = plan.niveles.length;
+
+  if (generados < objetivo) {
+    return {
+      ok: false,
+      problemas: [
+        `El plan declara ${objetivo} nivel(es) pero solo generó ${generados}. Generá exactamente ${objetivo} nivel(es), uno por cada planta visible.`,
+      ],
+    };
+  }
+
+  if (generados > objetivo) {
+    const nota = hayImagen
+      ? `La imagen muestra ${objetivo} nivel(es); se descartaron los niveles adicionales.`
+      : `El pedido indica ${objetivo} nivel(es); se descartaron los niveles adicionales.`;
+
+    const limitado = limitarANiveles(plan, objetivo, nota);
+    return {
+      ok: true,
+      plan: limitado.plan,
+      descartados: limitado.descartados,
+      aviso: `Se descartaron ${limitado.descartados} nivel(es) que no correspondían.`,
+    };
+  }
+
+  return { ok: true, plan, descartados: 0 };
 }

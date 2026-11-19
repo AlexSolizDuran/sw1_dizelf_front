@@ -57,12 +57,19 @@ gratuito`). Si falla el gratuito no se pasa a uno pago.
   no hay un mínimo de 2 plantas.
 - Sin escaleras: se agregan después con `create_stair`.
 
-## Solo imagen = una planta
+## La cantidad de niveles la define la imagen
 
-Cuando el pedido es solo una imagen, el endpoint conserva únicamente el nivel 0
-y descarta los demás. Los modelos tienden a inventar una segunda planta (o una
-variante del mismo plano) aunque la imagen muestre una sola. El recorte queda
-anotado en `notas`. Si se necesitan más niveles, hay que pedirlos en el texto.
+El planificador declara en `cantidadNiveles` cuántas plantas ve en la imagen (o
+cuántas pide el texto cuando no hay imagen). El endpoint exige que `niveles`
+tenga exactamente esa cantidad:
+
+- si el modelo genera de más, se recortan y queda anotado en `notas`;
+- si genera de menos, se pide una reparación.
+
+Así una foto de una sola planta no termina con dos niveles, y una foto de dos
+plantas no se recorta a una. El texto sirve para ambientes, usos y medidas; con
+imagen, no define la cantidad de niveles. Sin imagen, si el texto no menciona
+pisos, se usa 1.
 
 ## Llamada al modelo
 

@@ -8,7 +8,10 @@ import {
   planProyectoSchema,
   type PlanProyecto,
 } from "@/lib/ia/proyecto/esquema";
-import { normalizarPlan, limitarANivelUnico } from "@/lib/ia/proyecto/geometria";
+import {
+  ajustarCantidadNiveles,
+  normalizarPlan,
+} from "@/lib/ia/proyecto/geometria";
 import {
   cadenaDePerfiles,
   esPerfilProyecto,
@@ -20,7 +23,7 @@ import {
   llamarPlanificador,
   type RespuestaPlan,
 } from "@/lib/ia/proyecto/openrouter";
-import { promptEfectivo } from "@/lib/ia/proyecto/prompt";
+import { nivelesSegunTexto, promptEfectivo } from "@/lib/ia/proyecto/prompt";
 
 export const runtime = "nodejs";
 export const maxDuration = 300;
@@ -46,7 +49,22 @@ type Interpretacion =
   | { ok: true; plan: PlanProyecto; avisos: string[] }
   | { ok: false; problemas: string[] };
 
-function interpretar(texto: string, soloUnNivel = false): Interpretacion {
+interface ContextoPlan {
+  /** Con imagen, la cantidad de niveles la define lo que muestra. */
+  hayImagen: boolean;
+  /** Sin imagen, la cantidad pedida en el texto (1 si no se menciona). */
+  nivelesTexto: number;
+}
+
+/**
+ * Convierte la respuesta del modelo en un plan confiable.
+ *
+ * La cantidad de niveles no se acepta como venga: el modelo la declara en
+ * `cantidadNiveles` (contando la imagen) y acá se exige que `niveles` tenga
+ * exactamente esa cantidad. Si sobran se recortan; si faltan se pide una
+ * reparación. Así una foto de una sola planta no termina con dos pisos.
+ */
+function interpretar(texto: string, contexto: ContextoPlan): Interpretacion {
   const crudo = extraerJson(texto);
   if (crudo === null) {
     return {
@@ -68,26 +86,32 @@ function interpretar(texto: string, soloUnNivel = false): Interpretacion {
     return { ok: false, problemas: normalizado.problemas };
   }
 
-  // Solo imagen: el modelo suele inventar una segunda planta. El esquema la
-  // permite, así que se recorta acá y se deja constancia en `notas`.
-  if (soloUnNivel) {
-    const limitado = limitarANivelUnico(normalizado.plan);
-    if (limitado.descartados > 0) {
-      return {
-        ok: true,
-        plan: limitado.plan,
-        avisos: [
-          ...normalizado.avisos,
-          `Se descartaron ${limitado.descartados} nivel(es) porque el pedido era solo una imagen.`,
-        ],
-      };
-    }
+  const esperado = contexto.hayImagen
+    ? validado.data.cantidadNiveles
+    : contexto.nivelesTexto;
+
+  if (esperado === undefined) {
+    return {
+      ok: false,
+      problemas: [
+        "Falta 'cantidadNiveles'. Contá las plantas que se ven en la imagen y poné ese número (1, 2 o 3).",
+      ],
+    };
   }
+
+  const ajuste = ajustarCantidadNiveles(
+    normalizado.plan,
+    esperado,
+    contexto.hayImagen
+  );
+  if (!ajuste.ok) return ajuste;
 
   return {
     ok: true,
-    plan: normalizado.plan,
-    avisos: normalizado.avisos,
+    plan: ajuste.plan,
+    avisos: ajuste.aviso
+      ? [...normalizado.avisos, ajuste.aviso]
+      : normalizado.avisos,
   };
 }
 
@@ -186,9 +210,12 @@ export async function POST(request: NextRequest) {
 
   const texto = promptEfectivo(prompt, imagen !== null);
 
-  // Sin texto, la imagen se interpreta como una sola planta. Evita que el
-  // modelo agregue una segunda planta que nadie pidió.
-  const soloImagen = prompt.length === 0 && imagen !== null;
+  // La imagen define la cantidad de niveles; el texto solo se usa cuando no
+  // hay imagen. Se calcula una vez y se reutiliza en primera y reparación.
+  const contexto: ContextoPlan = {
+    hayImagen: imagen !== null,
+    nivelesTexto: nivelesSegunTexto(prompt),
+  };
 
   let imagenDataUrl: string | undefined;
   if (imagen !== null) {
@@ -232,7 +259,7 @@ export async function POST(request: NextRequest) {
     anotarConsumo(consumos, primera);
     let modeloUsado = primera.modelo ?? modelo;
 
-    let interpretado = interpretar(primera.texto, soloImagen);
+    let interpretado = interpretar(primera.texto, contexto);
 
     if (!interpretado.ok) {
       // Una única reparación con los errores concretos.
@@ -248,7 +275,7 @@ export async function POST(request: NextRequest) {
         });
         anotarConsumo(consumos, reparado);
         modeloUsado = reparado.modelo ?? modelo;
-        interpretado = interpretar(reparado.texto, soloImagen);
+        interpretado = interpretar(reparado.texto, contexto);
         if (!interpretado.ok) {
           planInvalido = { problemas: interpretado.problemas };
           break;

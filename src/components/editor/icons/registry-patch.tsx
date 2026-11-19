@@ -4,6 +4,7 @@ import { loadPlugin, nodeRegistry } from "@pascal-app/core";
 import { builtinPlugin } from "@pascal-app/nodes";
 import type { ComponentType, SVGProps } from "react";
 import { KIND_ICON } from "./glyphs";
+import { patchItemPaintSlots } from "@/lib/editor/patch-item-paint";
 import type { LucideIcon } from "lucide-react";
 
 /**
@@ -93,7 +94,10 @@ let bootstrap: Promise<number> | null = null;
  */
 export function bootstrapRegistry(): Promise<number> {
   bootstrap ??= loadPlugin(builtinPlugin)
-    .then(() => patchRegistryIcons())
+    .then(() => {
+      patchItemPaintSlots();
+      return patchRegistryIcons();
+    })
     .catch((error: unknown) => {
       // Un fallo real (apiVersion, plugin corrupto) no debe quedar cacheado:
       // el próximo montaje merece otro intento.

@@ -13,9 +13,10 @@ import {
  * porque el plan se ejecuta sin revisión humana: si los rectángulos se pisan,
  * `create_rooms` no puede compartir paredes.
  *
- * El ejemplo del formato muestra **un solo nivel** a propósito: los modelos
- * copian el ejemplo, y un "Casa de 2 pisos" los hacía inventar una planta que
- * nadie pidió.
+ * La cantidad de niveles la define la imagen cuando existe. El modelo la
+ * declara en `cantidadNiveles` y el endpoint la hace cumplir, porque las
+ * instrucciones por sí solas no alcanzan: el ejemplo de un solo nivel y las
+ * reglas de "hasta 3 niveles" igual lo llevaban a inventar una segunda planta.
  */
 export const SYSTEM_PROMPT_PLANIFICADOR = `Sos un planificador arquitectónico de DIZELF. Tu tarea es convertir un pedido (texto, una imagen o ambos) en la distribución completa de una vivienda.
 
@@ -24,6 +25,7 @@ Respondés SIEMPRE con un único objeto JSON válido. No escribas markdown, expl
 FORMATO
 {
   "nombreSugerido": "Departamento de un dormitorio",
+  "cantidadNiveles": 1,
   "niveles": [
     {
       "nivel": 0,
@@ -50,7 +52,7 @@ FORMATO
       ]
     }
   ],
-  "notas": "Un solo nivel, como en el pedido."
+  "notas": "Distribución aproximada según el pedido."
 }
 
 REGLAS OBLIGATORIAS
@@ -65,18 +67,22 @@ REGLAS OBLIGATORIAS
 - Nombres de hasta 60 caracteres, sin duplicados dentro del mismo nivel.
 - No inventes muebles, materiales, colores ni IDs.
 
-NIVELES
-- Generá exactamente los niveles que pida el texto o que muestre la imagen.
-- Si no se menciona la cantidad de pisos y la imagen muestra una sola planta, devolvé UN solo nivel.
-- No agregues plantas, entrepisos ni sótanos que no estén pedidos.
-- Todos los niveles comparten la misma huella en planta: los ambientes de un piso se apoyan sobre los del piso de abajo.
-- "nombreSugerido" debe describir lo generado (por ejemplo, "Departamento de un dormitorio" o "Casa de 1 piso"). No digas "2 pisos" si el plan tiene uno.
+NIVELES (REGLA CRÍTICA)
+- "cantidadNiveles" es la cantidad de plantas que se van a generar y debe coincidir EXACTAMENTE con la cantidad de objetos dentro de "niveles".
+- Si hay imagen, la imagen manda: contá las plantas o pisos que se ven y usá ese número. Si la imagen muestra una sola planta, "cantidadNiveles" es 1 y "niveles" tiene un solo objeto. Si muestra dos o tres, generá esas dos o tres.
+- Cuando hay imagen, el texto NO cambia la cantidad de niveles: sirve para ambientes, usos y medidas, no para agregar pisos.
+- Si no hay imagen, usá la cantidad que pida el texto. Si el texto no menciona pisos ni niveles, usá 1.
+- No agregues plantas, entrepisos ni sótanos que no estén en la imagen. Tampoco recortes plantas que la imagen sí muestra.
+- "nombreSugerido" debe describir lo generado (por ejemplo, "Departamento de un dormitorio" o "Casa de 2 pisos"). No digas "2 pisos" si el plan tiene uno.
+- Solo si hay más de un nivel: todos comparten la misma huella en planta, los ambientes de un piso se apoyan sobre los del piso de abajo.
 
 CÓMO INTERPRETAR EL PEDIDO
-- Si hay texto, respetá cantidad de dormitorios, baños, pisos y usos pedidos.
+- Si hay texto, respetá cantidad de dormitorios, baños y usos pedidos. Si además hay imagen, la cantidad de niveles la define la imagen.
 - Si hay una imagen:
-  - Un croquis o plano: seguí la distribución y las proporciones lo más fielmente posible.
-  - Una vista 3D en corte o un render: tratala como una planta. Los ambientes visibles son un solo nivel; no agregues pisos.
+  - Contá primero las plantas o pisos que se ven y poné ese número en "cantidadNiveles": puede ser 1, 2 o 3.
+  - Un croquis o plano de una sola planta: un único nivel.
+  - Un croquis o plano con varias plantas dibujadas: un nivel por cada planta, en orden.
+  - Una vista 3D en corte o un render: contá los pisos visibles; no agregues ni quites.
   - Una foto: interpretá la planta visible y no agregues ambientes que no se vean.
   - No inventes ambientes que no aparezcan en la imagen.
   - Si dos usos comparten el espacio (cocina-comedor, living-estar), usá UN solo rectángulo con nombre compuesto; no los separes en ambientes distintos.
@@ -86,12 +92,74 @@ CÓMO INTERPRETAR EL PEDIDO
 
 RECORDÁ
 - Devolvés solo el JSON.
-- La distribución debe cubrir la vivienda pedida, pero sin agregar ambientes ni niveles que no estén pedidos.
+- "cantidadNiveles" y la cantidad de objetos de "niveles" tienen que coincidir siempre.
+- La distribución debe cubrir la vivienda pedida, pero sin agregar ambientes ni niveles que no estén en la imagen o el pedido.
 - Si el pedido es ambiguo, elegí una distribución razonable y anotá el supuesto en "notas".`;
 
 /** Prompt efectivo cuando la persona adjuntó solo una imagen. */
 export const PROMPT_SOLO_IMAGEN =
-  "Interpretá la imagen y generá la distribución con los ambientes que se ven. Si muestra una sola planta, devolvé un único nivel y no inventes ambientes.";
+  "Interpretá la imagen y generá la distribución con los ambientes que se ven. Contá las plantas o pisos visibles y poné ese número en cantidadNiveles. No inventes ambientes ni niveles que no aparezcan en la imagen.";
+
+/** Números admitidos en el pedido, para deducir niveles sin imagen. */
+const NUMEROS_TEXTO: Record<string, number> = {
+  "1": 1,
+  un: 1,
+  uno: 1,
+  una: 1,
+  "2": 2,
+  dos: 2,
+  "3": 3,
+  tres: 3,
+};
+
+/** Normaliza acentos y mayúsculas para comparar el pedido. */
+function normalizarTexto(texto: string): string {
+  return texto
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase();
+}
+
+/**
+ * Cantidad de niveles que pide el texto.
+ *
+ * Solo se usa cuando **no hay imagen**: si hay imagen, manda lo que muestra.
+ * Ante la duda devuelve 1, que es más seguro que inventar una segunda planta.
+ */
+export function nivelesSegunTexto(prompt: string): number {
+  const texto = normalizarTexto(prompt);
+
+  // "planta baja" y "planta alta" juntas describen dos niveles.
+  if (/\bplanta\s+baja\b/.test(texto) && /\bplanta\s+alta\b/.test(texto)) {
+    return 2;
+  }
+
+  const coincidencia = texto.match(
+    /\b(1|2|3|un|uno|una|dos|tres)\s+(niveles?|pisos?|plantas?)\b/
+  );
+  if (coincidencia) {
+    const numero = NUMEROS_TEXTO[coincidencia[1]];
+    if (numero !== undefined) {
+      return Math.min(MAX_NIVELES, Math.max(1, numero));
+    }
+  }
+
+  if (/\bplanta\s+alta\b|\bsegundo\s+piso\b|\bentre\s*piso\b/.test(texto)) {
+    return 2;
+  }
+  if (/\btercer\s+piso\b|\btercer\s+nivel\b/.test(texto)) {
+    return 3;
+  }
+  if (
+    /\bplanta\s+baja\b|\bplanta\s+unica\b|\bun\s+solo\s+nivel\b|\buna\s+sola\s+planta\b/.test(
+      texto
+    )
+  ) {
+    return 1;
+  }
+
+  return 1;
+}
 
 export function promptEfectivo(prompt: string, hayImagen: boolean): string {
   const limpio = prompt.trim();

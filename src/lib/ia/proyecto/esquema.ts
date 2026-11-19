@@ -48,6 +48,12 @@ export const nivelPlanSchema = z.object({
 
 export const planProyectoSchema = z.object({
   nombreSugerido: z.string().trim().max(100).optional(),
+  /**
+   * Cantidad de niveles que muestra la imagen (o que pide el texto cuando no
+   * hay imagen). El modelo la declara y el endpoint la hace cumplir: no alcanza
+   * con que `niveles` tenga 2 objetos si la foto muestra una sola planta.
+   */
+  cantidadNiveles: z.number().int().min(1).max(MAX_NIVELES).optional(),
   niveles: z.array(nivelPlanSchema).min(1).max(MAX_NIVELES),
   notas: z.string().trim().max(500).optional(),
 });
@@ -67,9 +73,14 @@ export type PlanProyecto = z.infer<typeof planProyectoSchema>;
 export const PLAN_JSON_SCHEMA = {
   type: "object",
   additionalProperties: false,
-  required: ["niveles"],
+  required: ["cantidadNiveles", "niveles"],
   properties: {
     nombreSugerido: { type: "string", maxLength: 100 },
+    cantidadNiveles: {
+      type: "integer",
+      minimum: 1,
+      maximum: MAX_NIVELES,
+    },
     notas: { type: "string", maxLength: 500 },
     niveles: {
       type: "array",

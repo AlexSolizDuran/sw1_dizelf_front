@@ -171,12 +171,14 @@ export function MaterialesTab() {
 
   const toggleEraser = () => {
     const next = !paintEraser;
-    setPaintEraser(next);
     if (next) {
+      // `setActivePaintMaterial` también limpia `paintEraser`: hay que llamarlo
+      // primero y recién después activar el borrador, si no queda apagado.
       setActivePaintMaterial({ materialPreset: undefined, sourceTarget: activePaintTarget });
       setTool(null);
       setMode("material-paint");
     }
+    setPaintEraser(next);
   };
 
   /** Resetea todas las superficies del nodo seleccionado a su material por defecto. */

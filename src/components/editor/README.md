@@ -17,6 +17,7 @@ Editor arquitectónico construido sobre `@pascal-app/editor`. Se abre en
 | `build-tab.tsx` | Las 9 herramientas de estructura |
 | `muebles-tab.tsx` | Catálogo de mobiliario (111 objetos) |
 | `materiales-tab.tsx` | Biblioteca de pinturas y texturas |
+| `item-paint-slots.tsx` | Renderer de `item` con slot de pintura de reserva para GLB sin `slot_` |
 | `estructura-tab.tsx` | El JSON de la escena y el manifiesto para IA |
 | `properties-panel.tsx` | Inspector del nodo seleccionado |
 | `level-bootstrap.tsx` | Auto-selecciona el primer edificio y nivel |
@@ -28,8 +29,19 @@ Los hooks de sincronización y presencia viven en `src/hooks/`
 (`use-sincronizacion.ts`, `use-presencia.ts`, `use-delete-on-click.ts`).
 
 La lógica pura va fuera del componente: `lib/editor/node-fields.ts` (campos del
-inspector), `lib/editor/scene-json.ts` (serialización) y `lib/editor/catalog-es.ts`
-(catálogo en español).
+inspector), `lib/editor/scene-json.ts` (serialización), `lib/editor/catalog-es.ts`
+(catálogo en español) y `lib/editor/patch-item-paint.ts` (parche del renderer de
+`item` para que los GLB sin materiales `slot_` sean pintables).
+
+### Pintura de objetos 3D
+
+El paquete solo pinta mallas etiquetadas con un slot. Los GLB exportados sin el
+prefijo `slot_` (por ejemplo `ball`, `books` o `ceiling-lamp`) no podían
+pintarse: `resolveRole` devolvía `null`. `bootstrapRegistry()` sustituye el
+módulo lazy del renderer de `item` por un envoltorio que renombra esos
+materiales a `slot_surface` y fuerza un remontaje; así el slot se deriva solo y
+el material elegido se aplica y persiste en `node.slots.surface`. El envoltorio
+es idempotente y no toca `node_modules`.
 
 ## Los 4 tabs
 

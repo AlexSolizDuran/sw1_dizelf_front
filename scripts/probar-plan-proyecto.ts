@@ -15,9 +15,16 @@ import {
   extraerJson,
   planProyectoSchema,
 } from "../src/lib/ia/proyecto/esquema";
-import { limitarANivelUnico, normalizarPlan } from "../src/lib/ia/proyecto/geometria";
+import {
+  ajustarCantidadNiveles,
+  limitarANiveles,
+  normalizarPlan,
+} from "../src/lib/ia/proyecto/geometria";
 import { llamarPlanificador } from "../src/lib/ia/proyecto/openrouter";
-import { promptEfectivo } from "../src/lib/ia/proyecto/prompt";
+import {
+  nivelesSegunTexto,
+  promptEfectivo,
+} from "../src/lib/ia/proyecto/prompt";
 
 function planBase(ambientes: unknown[], niveles = 1) {
   return {
@@ -140,20 +147,89 @@ function probarGeometria() {
   );
   assert.equal(chico.ok, false);
 
-  // Solo imagen: una segunda planta inventada se descarta y queda anotada.
+  // Si la imagen muestra un solo nivel, una segunda planta inventada se
+  // descarta y queda anotada.
   const dosNiveles = normalizarPlan(
     planProyectoSchema.parse(planBase([rect("Living", 0, 0, 5, 4)], 2))
   );
   assert.equal(dosNiveles.ok, true);
-  const limitado = limitarANivelUnico(dosNiveles.plan);
+  const limitado = limitarANiveles(dosNiveles.plan, 1);
   assert.equal(limitado.descartados, 1);
   assert.equal(limitado.plan.niveles.length, 1);
-  assert.ok(limitado.plan.notas?.includes("una sola planta"));
+  assert.ok(limitado.plan.notas?.includes("imagen"));
+
+  // Si la imagen muestra dos niveles, se conservan los dos: no se recorta a 1.
+  const dosIntactos = limitarANiveles(dosNiveles.plan, 2);
+  assert.equal(dosIntactos.descartados, 0);
+  assert.equal(dosIntactos.plan, dosNiveles.plan);
+
+  // Tres niveles inventados sobre una imagen de dos: se conservan dos.
+  const tresNiveles = normalizarPlan(
+    planProyectoSchema.parse(planBase([rect("Living", 0, 0, 5, 4)], 3))
+  );
+  assert.equal(tresNiveles.ok, true);
+  const dosDeTres = limitarANiveles(tresNiveles.plan, 2);
+  assert.equal(dosDeTres.descartados, 1);
+  assert.equal(dosDeTres.plan.niveles.length, 2);
 
   // Un plan de un solo nivel no se toca.
-  const intacto = limitarANivelUnico(rotado.plan);
+  const intacto = limitarANiveles(rotado.plan, 1);
   assert.equal(intacto.descartados, 0);
   assert.equal(intacto.plan, rotado.plan);
+}
+
+function probarAjusteNiveles() {
+  const dosNiveles = normalizarPlan(
+    planProyectoSchema.parse(planBase([rect("Living", 0, 0, 5, 4)], 2))
+  );
+  assert.equal(dosNiveles.ok, true);
+
+  // La imagen muestra 1 y el plan trae 2: se recorta y se avisa.
+  const recortado = ajustarCantidadNiveles(dosNiveles.plan, 1, true);
+  assert.equal(recortado.ok, true);
+  if (recortado.ok) {
+    assert.equal(recortado.plan.niveles.length, 1);
+    assert.equal(recortado.descartados, 1);
+    assert.ok(recortado.aviso?.includes("descartaron"));
+    assert.ok(recortado.plan.notas?.includes("imagen"));
+  }
+
+  // La imagen muestra 2 y el plan trae 2: no se toca.
+  const intacto = ajustarCantidadNiveles(dosNiveles.plan, 2, true);
+  assert.equal(intacto.ok, true);
+  if (intacto.ok) {
+    assert.equal(intacto.descartados, 0);
+    assert.equal(intacto.plan, dosNiveles.plan);
+  }
+
+  // El plan declara 2 pero trae 1: hace falta reparación.
+  const unNivel = normalizarPlan(
+    planProyectoSchema.parse(planBase([rect("Living", 0, 0, 5, 4)], 1))
+  );
+  assert.equal(unNivel.ok, true);
+  const faltante = ajustarCantidadNiveles(unNivel.plan, 2, true);
+  assert.equal(faltante.ok, false);
+  if (!faltante.ok) {
+    assert.ok(faltante.problemas[0]?.includes("generó"));
+  }
+
+  // Sin imagen, el texto manda y la nota habla del pedido.
+  const porTexto = ajustarCantidadNiveles(dosNiveles.plan, 1, false);
+  assert.equal(porTexto.ok, true);
+  if (porTexto.ok) {
+    assert.ok(porTexto.plan.notas?.includes("pedido"));
+  }
+}
+
+function probarNivelesSegunTexto() {
+  assert.equal(nivelesSegunTexto("Casa de un piso"), 1);
+  assert.equal(nivelesSegunTexto("Casa de dos pisos"), 2);
+  assert.equal(nivelesSegunTexto("Departamento de 3 niveles"), 3);
+  assert.equal(nivelesSegunTexto("Casa con tres plantas"), 3);
+  assert.equal(nivelesSegunTexto("Planta baja y planta alta"), 2);
+  assert.equal(nivelesSegunTexto("Casa con 3 dormitorios y 2 baños"), 1);
+  assert.equal(nivelesSegunTexto(""), 1);
+  assert.equal(nivelesSegunTexto("Casa de un solo nivel"), 1);
 }
 
 async function probarModeloReal() {
@@ -171,7 +247,12 @@ async function probarModeloReal() {
   );
   console.log("[real] respuesta:\n" + respuesta.texto.slice(0, 1_200));
 
-  validarTextoDePlan(respuesta.texto, "[real]");
+  const plan = validarTextoDePlan(respuesta.texto, "[real]");
+  assert.equal(
+    plan.niveles.length,
+    1,
+    "un pedido de un piso no debe generar dos niveles"
+  );
 }
 
 function validarTextoDePlan(texto: string, etiqueta: string) {
@@ -189,6 +270,16 @@ function validarTextoDePlan(texto: string, etiqueta: string) {
     console.error(normalizado.problemas);
     assert.fail("el plan del modelo no pasó la validación geométrica");
   }
+
+  assert.ok(
+    validado.data.cantidadNiveles !== undefined,
+    "el modelo debe declarar cantidadNiveles"
+  );
+  assert.equal(
+    normalizado.plan.niveles.length,
+    validado.data.cantidadNiveles,
+    "cantidadNiveles debe coincidir con la cantidad de niveles generados"
+  );
 
   const ambientes = normalizado.plan.niveles.flatMap((nivel) => nivel.ambientes);
   console.log(
@@ -220,7 +311,12 @@ async function probarDosNiveles() {
   );
   console.log("[dos-niveles] respuesta:\n" + respuesta.texto.slice(0, 1_500));
 
-  validarTextoDePlan(respuesta.texto, "[dos-niveles]");
+  const plan = validarTextoDePlan(respuesta.texto, "[dos-niveles]");
+  assert.equal(
+    plan.niveles.length,
+    2,
+    "un pedido de dos pisos debe generar dos niveles"
+  );
 }
 
 function tipoDeImagen(ruta: string): string {
@@ -251,26 +347,20 @@ async function probarImagenReal(ruta: string) {
   );
   console.log("[imagen] respuesta:\n" + respuesta.texto.slice(0, 1_000));
 
+  // La cantidad de niveles la define la imagen: el plan debe declarar la misma
+  // cantidad que generó (ya validado en `validarTextoDePlan`). No se fuerza 1.
   const plan = validarTextoDePlan(respuesta.texto, "[imagen]");
-
-  // Misma regla que aplica el endpoint: solo imagen = un único nivel.
-  const limitado = limitarANivelUnico(plan);
-  if (limitado.descartados > 0) {
-    console.log(
-      `[imagen] se descartaron ${limitado.descartados} nivel(es) inventado(s)`
-    );
-  }
-  assert.equal(
-    limitado.plan.niveles.length,
-    1,
-    "una imagen sola debe quedar en un único nivel"
+  console.log(
+    `[imagen] el modelo detectó ${plan.niveles.length} nivel(es) en la imagen`
   );
 }
 
 async function main() {
   probarEsquema();
   probarGeometria();
-  console.log("Pruebas de esquema y geometría: OK");
+  probarAjusteNiveles();
+  probarNivelesSegunTexto();
+  console.log("Pruebas de esquema, geometría y niveles: OK");
 
   if (process.argv.includes("--real")) {
     await probarModeloReal();
