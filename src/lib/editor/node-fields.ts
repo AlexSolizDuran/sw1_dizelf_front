@@ -4,6 +4,7 @@ import {
   type AnyNode,
   nodeRegistry,
 } from "@pascal-app/core"
+import { fieldLabel } from "./labels"
 
 export type FieldKind = "number" | "text" | "bool" | "enum" | "color" | "metric"
 
@@ -305,7 +306,7 @@ const materialGroup = (): FieldGroup => ({
   fields: [
     {
       path: ["material", "preset"],
-      label: "Preset",
+      label: "Acabado",
       kind: "enum",
       options: [] as string[],
       fromSchema: true,
@@ -323,7 +324,7 @@ const materialGroup = (): FieldGroup => ({
       precision: 2,
       suggestions: ESCALA_01,
     }),
-    num(["material", "properties", "metalness"], "Metalness", {
+    num(["material", "properties", "metalness"], "Metalicidad", {
       min: 0,
       max: 1,
       step: 0.01,
@@ -367,7 +368,7 @@ const CATALOG: Record<string, Catalog> = {
           step: 0.05,
           fallback: DEFAULT_WALL_HEIGHT,
         }),
-        num(["curveOffset"], "Curva", { unit: "m", min: -3, max: 3, step: 0.05, fallback: 0 }),
+        num(["curveOffset"], "Curvatura", { unit: "m", min: -3, max: 3, step: 0.05, fallback: 0 }),
         spanMetric,
         num(["start", 0], "Inicio X", { unit: "m" }),
         num(["start", 1], "Inicio Z", { unit: "m" }),
@@ -433,8 +434,8 @@ const CATALOG: Record<string, Catalog> = {
         num(["width"], "Ancho", { unit: "m", min: 0.02, max: 3 }),
         num(["depth"], "Profundidad", { unit: "m", min: 0.02, max: 3 }),
         num(["radius"], "Radio", { unit: "m", min: 0.01, max: 3 }),
-        num(["baseHeight"], "Base", { unit: "m", min: 0, max: 3 }),
-        num(["capitalHeight"], "Capitel", { unit: "m", min: 0, max: 3 }),
+        num(["baseHeight"], "Altura de base", { unit: "m", min: 0, max: 3 }),
+        num(["capitalHeight"], "Altura de capitel", { unit: "m", min: 0, max: 3 }),
       ],
     },
     {
@@ -455,9 +456,9 @@ const CATALOG: Record<string, Catalog> = {
         num(["asset", "dimensions", 0], "Ancho", { unit: "m" }),
         num(["asset", "dimensions", 1], "Alto", { unit: "m" }),
         num(["asset", "dimensions", 2], "Profundidad", { unit: "m" }),
-        num(["scale", 0], "Esc X", { step: 0.01, precision: 3, min: 0.01, max: 20 }),
-        num(["scale", 1], "Esc Y", { step: 0.01, precision: 3, min: 0.01, max: 20 }),
-        num(["scale", 2], "Esc Z", { step: 0.01, precision: 3, min: 0.01, max: 20 }),
+        num(["scale", 0], "Escala X", { step: 0.01, precision: 3, min: 0.01, max: 20 }),
+        num(["scale", 1], "Escala Y", { step: 0.01, precision: 3, min: 0.01, max: 20 }),
+        num(["scale", 2], "Escala Z", { step: 0.01, precision: 3, min: 0.01, max: 20 }),
       ],
     },
     {
@@ -610,9 +611,9 @@ const CATALOG: Record<string, Catalog> = {
       fields: [
         num(["height"], "Altura", { unit: "m", min: 0.2, max: 4, step: 0.05 }),
         num(["thickness"], "Espesor", { unit: "m", min: 0.01, max: 0.4 }),
-        num(["postSpacing"], "Densidad", { unit: "m", min: 0.2, max: 4, step: 0.05 }),
-        num(["postSize"], "Postes", { unit: "m", min: 0.02, max: 0.4 }),
-        num(["baseHeight"], "Zócalo", { unit: "m", min: 0, max: 2, step: 0.05 }),
+        num(["postSpacing"], "Separación de postes", { unit: "m", min: 0.2, max: 4, step: 0.05 }),
+        num(["postSize"], "Tamaño de poste", { unit: "m", min: 0.02, max: 0.4 }),
+        num(["baseHeight"], "Altura de zócalo", { unit: "m", min: 0, max: 2, step: 0.05 }),
         spanMetric,
       ],
     },
@@ -690,13 +691,6 @@ const SKIP_KEYS = new Set([
   "chairRailExterior",
 ])
 
-function humanise(key: string): string {
-  return key
-    .replace(/([a-z0-9])([A-Z])/g, "$1 $2")
-    .replace(/[_-]+/g, " ")
-    .replace(/^./, (c) => c.toUpperCase())
-}
-
 function zodScalarType(zod: unknown): "number" | "boolean" | "enum" | null {
   if (unwrapZodEnum(zod) !== null) return "enum"
   const type = zodTypeName(zod)
@@ -715,11 +709,11 @@ function genericGroup(node: AnyNode): FieldGroup | null {
     if (SKIP_KEYS.has(key)) continue
     const scalar = zodScalarType(zod)
     if (scalar === "number") {
-      fields.push(num([key], humanise(key), { step: 0.01, precision: 3 }))
+      fields.push(num([key], fieldLabel(key), { step: 0.01, precision: 3 }))
     } else if (scalar === "boolean") {
-      fields.push(bool([key], humanise(key)))
+      fields.push(bool([key], fieldLabel(key)))
     } else if (scalar === "enum") {
-      fields.push({ path: [key], label: humanise(key), kind: "enum", fromSchema: true })
+      fields.push({ path: [key], label: fieldLabel(key), kind: "enum", fromSchema: true })
     }
   }
   return fields.length > 0 ? { id: "avanzado", label: "Avanzado", fields } : null

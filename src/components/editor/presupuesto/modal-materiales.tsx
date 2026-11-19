@@ -55,12 +55,11 @@ export function ModalMateriales({
   const conPrecio = materiales.filter((m) => m.precioWeb);
   const aMano = materiales.filter((m) => !m.precioWeb);
 
-  const grupo = (titulo: string, detalle: string, lista: MaterialCatalogo[]) =>
+  const grupo = (titulo: string, lista: MaterialCatalogo[]) =>
     lista.length > 0 && (
       <section className={s.grupo}>
         <header className={s.grupoHead}>
           <h3 className={s.grupoTitulo}>{titulo}</h3>
-          <span className={s.grupoDetalle}>{detalle}</span>
         </header>
         <div className={s.grilla}>
           {lista.map((material) => {
@@ -111,11 +110,7 @@ export function ModalMateriales({
       >
         <header className={s.modalHead}>
           <div className={s.headerTexto}>
-            <h2 className={s.tituloPanel}>Agregar un material</h2>
-            <p className={s.subtitulo}>
-              Los de precio de tienda se cotizan solos; los de precio a mano
-              necesitan que escribas el precio.
-            </p>
+            <h2 className={s.tituloPanel}>Agregar material</h2>
           </div>
           <button
             aria-label="Cerrar el selector de materiales"
@@ -131,29 +126,21 @@ export function ModalMateriales({
           {cargando && materiales.length === 0 && (
             <p className={s.hint}>
               <Loader2 className="mr-1 inline h-3 w-3 animate-spin" />
-              Cargando el catálogo de materiales…
+              Cargando materiales…
             </p>
           )}
 
           {error && materiales.length === 0 && (
             <p className={s.hint} role="alert">
-              No se pudo cargar el catálogo ({error}).{" "}
+              No se pudo cargar.{" "}
               <button className={s.enlace} onClick={onRecargar} type="button">
                 Reintentar
               </button>
             </p>
           )}
 
-          {grupo(
-            "Precio automático de tienda",
-            "El servidor consulta la tienda al generar.",
-            conPrecio
-          )}
-          {grupo(
-            "Precio escrito a mano",
-            "Sin precio publicado: lo escribís vos.",
-            aMano
-          )}
+          {grupo("Precio de tienda", conPrecio)}
+          {grupo("Precio manual", aMano)}
         </div>
       </section>
     </div>

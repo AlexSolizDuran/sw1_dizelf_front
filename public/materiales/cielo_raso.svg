@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 120" role="img" aria-label="Cielo raso con perfilería y placas">
+  <rect width="160" height="120" fill="#f4f1ec"/>
+  <rect x="0" y="102" width="160" height="18" fill="#e6e0d6"/>
+  <path d="M20 34h120l-16 26H36z" fill="#ece7dd"/>
+  <path d="M20 34h120l-16 26H36z" fill="none" stroke="#b9ab98" stroke-width="2"/>
+  <path d="M20 34l16 26M44 34l7 26M68 34l-2 26M92 34l-11 26M116 34l-20 26M140 34l-29 26"
+        stroke="#cdc1ac" stroke-width="1.6"/>
+  <path d="M36 60h88" stroke="#a99a85" stroke-width="2.5"/>
+  <g>
+    <rect x="46" y="74" width="68" height="8" rx="2" fill="#d8d2c6"/>
+    <rect x="46" y="83" width="68" height="8" rx="2" fill="#e3ded4"/>
+    <rect x="46" y="92" width="68" height="8" rx="2" fill="#efeae1"/>
+    <path d="M52 78h56M52 87h56M52 96h56" stroke="#c3b8a6" stroke-width="1.2"/>
+  </g>
+</svg>

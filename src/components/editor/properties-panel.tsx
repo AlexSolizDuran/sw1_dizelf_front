@@ -15,6 +15,7 @@ import {
   type FieldGroup,
   type FieldSpec,
 } from "@/lib/editor/node-fields";
+import { optionLabel } from "@/lib/editor/labels";
 import { iconForKind } from "./icons/registry-patch";
 import s from "./editor.module.css";
 
@@ -38,6 +39,32 @@ const KIND_LABELS: Record<string, string> = {
   building: "Edificio",
   level: "Nivel",
   site: "Terreno",
+  cabinet: "Mueble",
+  "cabinet-module": "Módulo de mueble",
+  skylight: "Claraboya",
+  gutter: "Canaleta",
+  downspout: "Bajante",
+  dormer: "Buhardilla",
+  chimney: "Chimenea",
+  cupola: "Cúpula",
+  "box-vent": "Rejilla de ventilación",
+  "ridge-vent": "Ventilación de cumbrera",
+  "turbine-vent": "Extractor eólico",
+  "eyebrow-vent": "Ventilación de alero",
+  "duct-fitting": "Accesorio de conducto",
+  "duct-segment": "Conducto",
+  "duct-terminal": "Rejilla de conducto",
+  "hvac-equipment": "Equipo HVAC",
+  "pipe-fitting": "Accesorio de tubería",
+  "pipe-segment": "Tubería",
+  "pipe-trap": "Sifón",
+  "solar-panel": "Panel solar",
+  measurement: "Medición",
+  guide: "Guía",
+  scan: "Escaneo",
+  spawn: "Punto de inicio",
+  lineset: "Línea de refrigerante",
+  "liquid-line": "Línea de líquido",
 };
 
 /**
@@ -167,7 +194,6 @@ export function PropertiesPanel({
         <Icon className="h-[26px] w-[26px] shrink-0 opacity-85" />
         <div className="min-w-0 flex-1">
           <p className={s.propsKind}>{kindLabel(node.type)}</p>
-          <p className={s.propsSubid}>{node.type}</p>
         </div>
         <button aria-label="Cerrar" className={s.propsX} onClick={close} type="button">
           <X className="h-3.5 w-3.5" />
@@ -375,7 +401,7 @@ function Row({
               ) : null}
               {options.map((option) => (
                 <option key={option} value={option}>
-                  {option}
+                  {optionLabel(option, field.path)}
                 </option>
               ))}
             </select>

@@ -123,17 +123,20 @@ if (process.env.NEXT_PHASE === "phase-production-build" && !MODELOS_ORIGIN) {
 }
 
 /**
- * `'unsafe-eval'` solo en desarrollo.
+ * `'unsafe-eval'` hace falta TAMBIÉN en producción.
  *
- * En `next dev`, React usa `eval()` para Fast Refresh, HMR y reconstruir
- * callstacks entre entornos; sin él el navegador lanza "eval() is not supported
- * in this environment" y la app no hidrata. `wasm-unsafe-eval` NO lo cubre: es
- * una directiva distinta, solo para compilar WebAssembly.
+ * En desarrollo React lo necesita para Fast Refresh, HMR y callstacks. Pero en
+ * producción lo exige el transcoder KTX2 de las texturas: `basis_transcoder.js`
+ * (Emscripten) llama a `new Function` al inicializar el worker del `KTX2Loader`.
+ * Sin la directiva, el worker del blob hereda este CSP, el `new Function` lanza
+ * `EvalError` y **todas** las texturas `.ktx2` fallan en silencio: los materiales
+ * de la biblioteca (madera, piedra, baldosa…) no pintan y la superficie queda
+ * blanca. Los colores funcionan porque no llevan mapa. Es el síntoma que
+ * aparecía solo en Vercel y no en `next dev`.
  *
- * En producción React nunca llama a `eval()`, así que prod queda sin la
- * directiva y el CSP sigue igual de estricto.
+ * `wasm-unsafe-eval` NO lo cubre: es una directiva distinta, solo para compilar
+ * WebAssembly.
  */
-const IS_DEV = process.env.NODE_ENV !== "production";
 
 /**
  * Fotos de producto del presupuesto de materiales.
@@ -157,9 +160,9 @@ const TIENDAS_IMG = [
  *
  * `script-src` y `style-src` necesitan `'unsafe-inline'`: Next inyecta el
  * payload de hidratación en `<script>` inline y Tailwind v4 emite los estilos
- * como `<style>` inline en dev. Además, en dev se agrega `'unsafe-eval'` (ver
- * `IS_DEV`) porque React lo exige para Fast Refresh; en prod no. Una CSP
- * estricta con nonce exigiría un
+ * como `<style>` inline en dev. `'unsafe-eval'` va en dev y en prod: React lo
+ * exige para Fast Refresh y el transcoder KTX2 lo exige siempre (ver arriba).
+ * Una CSP estricta con nonce exigiría un
  * `middleware.ts` que lo inyecte; lo que sí se cierra acá, sobre un árbol que
  * ya no tiene sinks de inyección (`dangerouslySetInnerHTML`, `innerHTML`, `eval`
  * y `JSON.parse` de datos remotos dan 0 en `src/`), es:
@@ -195,7 +198,7 @@ const CSP = [
   "base-uri 'self'",
   "form-action 'self'",
   "frame-ancestors 'none'",
-  `script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval'${IS_DEV ? " 'unsafe-eval'" : ""}`,
+  "script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval' 'unsafe-eval'",
   "style-src 'self' 'unsafe-inline'",
   // El decodificador draco del visor 3D es WebAssembly.
 ].join("; ");

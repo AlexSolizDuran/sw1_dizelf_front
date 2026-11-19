@@ -60,6 +60,10 @@ export function TarjetaMaterial({
   children,
   supuesto,
 }: Props) {
+  // En la línea ya elegida manda el supuesto con el que se calculó; en el
+  // catálogo, la nota del producto.
+  const nota = variante === "linea" ? supuesto ?? material.nota : material.nota;
+
   return (
     <article className={s.tarjeta} data-variante={variante}>
       <Miniatura material={material} />
@@ -67,11 +71,13 @@ export function TarjetaMaterial({
       <div className={s.tarjetaTexto}>
         <h3 className={s.tarjetaNombre}>{material.nombre}</h3>
         <p className={s.tarjetaMeta}>
-          {material.categoria} · por {material.unidad} ·{" "}
-          {material.precioWeb ? "precio de tienda" : "precio a mano"}
+          {material.unidad} · {material.precioWeb ? "tienda" : "manual"}
         </p>
-        {material.nota && <p className={s.tarjetaNota}>{material.nota}</p>}
-        {supuesto && <p className={s.tarjetaNota}>{supuesto}</p>}
+        {nota && (
+          <p className={s.tarjetaNota} title={nota}>
+            {nota}
+          </p>
+        )}
       </div>
 
       {children && <div className={s.tarjetaAcciones}>{children}</div>}

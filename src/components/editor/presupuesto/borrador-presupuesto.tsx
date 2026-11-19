@@ -9,11 +9,7 @@ import {
   Trash2,
 } from "lucide-react";
 import type { MaterialCatalogo } from "@/lib/presupuesto/catalogo";
-import {
-  formatearCantidad,
-  formatearFecha,
-  numeroDesdeTexto,
-} from "@/lib/presupuesto/formato";
+import { formatearCantidad, numeroDesdeTexto } from "@/lib/presupuesto/formato";
 import type { LineaBorrador } from "@/lib/presupuesto/lineas";
 import type { AlcanceMedicion, MedicionNivel } from "@/lib/presupuesto/medicion";
 import { RECETA_VERSION } from "@/lib/presupuesto/recetas";
@@ -103,7 +99,7 @@ function LineaTarjeta({
         variante="linea"
       >
         <label className={s.campoLinea}>
-          <span className={s.etiqueta}>Cantidad</span>
+          <span className={s.etiqueta}>Cant.</span>
           <span className={s.campoFila}>
             <input
               aria-label={`Cantidad de ${linea.material.nombre}`}
@@ -122,7 +118,7 @@ function LineaTarjeta({
         </label>
 
         <label className={s.campoLinea}>
-          <span className={s.etiqueta}>Precio unitario (Bs)</span>
+          <span className={s.etiqueta}>Precio Bs</span>
           <span className={s.campoFila}>
             <input
               aria-label={`Precio unitario en bolivianos de ${linea.material.nombre}`}
@@ -134,7 +130,7 @@ function LineaTarjeta({
               onKeyDown={(e) => {
                 if (e.key === "Enter") e.currentTarget.blur();
               }}
-              placeholder={linea.material.precioWeb ? "de tienda" : "obligatorio"}
+              placeholder={linea.material.precioWeb ? "tienda" : "manual"}
               value={precio}
             />
           </span>
@@ -226,7 +222,7 @@ export function BorradorPresupuesto({
         </label>
 
         <label className={s.campo} data-ancho="corto">
-          <span className={s.etiqueta}>Tipo de cambio (Bs por USD)</span>
+          <span className={s.etiqueta}>Dólar (Bs)</span>
           <input
             className={s.input}
             disabled={!puedeEditar}
@@ -241,7 +237,7 @@ export function BorradorPresupuesto({
       <p className={s.hint}>
         {tasaFuente ? (
           <>
-            Sugerida por {tasaFuente.fuente} ({formatearFecha(tasaFuente.capturadoEn)}):{" "}
+            Sugerida:{" "}
             <a
               className={s.enlace}
               href={tasaFuente.fuenteUrl}
@@ -249,12 +245,13 @@ export function BorradorPresupuesto({
               target="_blank"
             >
               {tasaFuente.tasa} Bs/USD
-            </a>
+            </a>{" "}
+            · {tasaFuente.fuente}
           </>
         ) : tasaSinDato ? (
-          "Sin cotización del día: escribí la tasa a mano."
+          "Sin cotización. Escribí la tasa."
         ) : (
-          "Consultando la cotización del día…"
+          "Consultando…"
         )}
       </p>
 
@@ -266,8 +263,8 @@ export function BorradorPresupuesto({
             onClick={onMedir}
             title={
               materiales.length === 0
-                ? "El catálogo de materiales todavía no cargó"
-                : "Mide muros, aberturas y losas"
+                ? "El catálogo todavía no cargó"
+                : "Mide muros, pisos, techos y pintura"
             }
             type="button"
           >
@@ -307,12 +304,10 @@ export function BorradorPresupuesto({
           <>
             <dl className={s.metricas}>
               {[
-                ["Muro neto", `${formatearCantidad(medicion.areaMuroNetaM2)} m²`],
-                ["Muro bruto", `${formatearCantidad(medicion.areaMuroBrutaM2)} m²`],
-                ["Aberturas", `${formatearCantidad(medicion.areaAberturasM2)} m²`],
+                ["Muro", `${formatearCantidad(medicion.areaMuroNetaM2)} m²`],
                 ["Piso", `${formatearCantidad(medicion.areaPisoM2)} m²`],
-                ["Puertas", String(medicion.puertas)],
-                ["Ventanas", String(medicion.ventanas)],
+                ["Techo", `${formatearCantidad(medicion.areaTechoM2)} m²`],
+                ["Pintado", `${formatearCantidad(medicion.areaPintadaM2)} m²`],
               ].map(([titulo, valor]) => (
                 <div className={s.metrica} key={titulo}>
                   <dt>{titulo}</dt>
@@ -322,20 +317,17 @@ export function BorradorPresupuesto({
             </dl>
 
             <p className={s.hint}>
-              {medicion.muros} muros · {formatearCantidad(medicion.largoMuroM)} m de
-              eje · cantidades estimadas (receta {RECETA_VERSION}).
-              {medicion.usoAltoPorDefecto && " Altura asumida: 2,70 m."}
+              Receta {RECETA_VERSION} · {medicion.muros} muros
+              {medicion.usoAltoPorDefecto && " · altura 2,70 m"}
               {medicion.aberturasSinMedidas > 0 &&
-                ` ${medicion.aberturasSinMedidas} aberturas sin medidas no descontadas.`}
+                ` · ${medicion.aberturasSinMedidas} aberturas sin medidas`}
             </p>
           </>
         )}
       </div>
 
       <div className={s.lineasHead}>
-        <span className={s.etiqueta}>
-          Materiales del presupuesto · {lineas.length}
-        </span>
+        <span className={s.etiqueta}>Materiales · {lineas.length}</span>
         <button
           className={s.botonSecundario}
           disabled={!puedeEditar}
@@ -348,9 +340,7 @@ export function BorradorPresupuesto({
       </div>
 
       {lineas.length === 0 ? (
-        <p className={s.vacio}>
-          Sin materiales todavía. Medí el plano o agregalos desde el catálogo.
-        </p>
+        <p className={s.vacio}>Sin materiales. Medí el plano o agregalos.</p>
       ) : (
         <ul className={s.lineas}>
           {lineas.map((linea) => (
@@ -379,7 +369,7 @@ export function BorradorPresupuesto({
 
       {catalogoError && materiales.length > 0 && (
         <p className={s.hint} role="alert">
-          El catálogo se cargó con errores: faltan materiales.{" "}
+          Faltan materiales.{" "}
           <button className={s.enlace} onClick={onRecargarCatalogo} type="button">
             Reintentar
           </button>
@@ -396,8 +386,11 @@ export function BorradorPresupuesto({
 
       <div className={s.pieAcciones}>
         <p className={s.hint}>
-          Los precios se congelan al generar. Lo que no tenga precio queda
-          pendiente.
+          {sinPrecio.length > 0
+            ? `${sinPrecio.length} ${
+                sinPrecio.length === 1 ? "línea sin precio" : "líneas sin precio"
+              }: completá el precio.`
+            : "Los precios se congelan al generar."}
         </p>
         <button
           className={s.botonPrimario}
@@ -406,19 +399,9 @@ export function BorradorPresupuesto({
           type="button"
         >
           {guardando && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
-          {guardando ? "Consultando tiendas…" : "Generar presupuesto"}
+          {guardando ? "Generando…" : "Generar"}
         </button>
       </div>
-
-      {sinPrecio.length > 0 && (
-        <p className={s.hint}>
-          {sinPrecio.length}{" "}
-          {sinPrecio.length === 1
-            ? "línea sin precio de tienda"
-            : "líneas sin precio de tienda"}
-          : completá el precio unitario.
-        </p>
-      )}
     </div>
   );
 }

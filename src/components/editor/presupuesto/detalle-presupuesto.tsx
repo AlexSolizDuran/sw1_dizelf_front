@@ -50,9 +50,7 @@ export function DetallePresupuesto({
   const exportarPdf = () => {
     const ok = imprimirPresupuesto(presupuesto, nombreProyecto);
     if (!ok) {
-      onError(
-        "El navegador bloqueó la ventana de impresión. Habilitá las ventanas emergentes para guardar el PDF."
-      );
+      onError("Habilitá las ventanas emergentes para guardar el PDF.");
     }
   };
 
@@ -128,13 +126,13 @@ export function DetallePresupuesto({
 
       <div className={s.totales}>
         <div className={s.totalBloque}>
-          <span className={s.etiqueta}>Total en bolivianos</span>
+          <span className={s.etiqueta}>Total Bs</span>
           <strong className={s.totalValor}>
             {formatearMoneda(presupuesto.totalMaterialesBs, "BOB")}
           </strong>
         </div>
         <div className={s.totalBloque}>
-          <span className={s.etiqueta}>Total en dólares</span>
+          <span className={s.etiqueta}>Total USD</span>
           <strong className={s.totalValor}>
             {formatearMoneda(presupuesto.totalMaterialesUsd, "USD")}
           </strong>
@@ -159,8 +157,8 @@ export function DetallePresupuesto({
           <thead>
             <tr>
               <th>Material</th>
-              <th className={s.celdaNum}>Cantidad</th>
-              <th className={s.celdaNum}>P. unitario</th>
+              <th className={s.celdaNum}>Cant.</th>
+              <th className={s.celdaNum}>P. unit.</th>
               <th className={s.celdaNum}>Subtotal</th>
             </tr>
           </thead>
@@ -174,7 +172,7 @@ export function DetallePresupuesto({
                 <td className={s.celdaMaterial}>
                   <span className={s.materialNombre}>{linea.descripcion}</span>
                   <span className={s.materialMeta}>
-                    {linea.categoria} · {linea.origen === "MANUAL" ? "precio a mano" : "precio de tienda"}
+                    {linea.origen === "MANUAL" ? "manual" : "tienda"}
                   </span>
                   {linea.fuente?.tipo === "web" && linea.fuente.proveedor && (
                     <span className={s.fuente}>
@@ -191,7 +189,6 @@ export function DetallePresupuesto({
                       ) : (
                         linea.fuente.proveedor
                       )}
-                      {linea.fuente.sku ? ` · SKU ${linea.fuente.sku}` : ""}
                       {" · "}
                       {formatearFecha(linea.fuente.capturadoEn)}
                     </span>
@@ -237,16 +234,14 @@ export function DetallePresupuesto({
           <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
           {presupuesto.lineasPendientes}{" "}
           {presupuesto.lineasPendientes === 1
-            ? "línea fuera del total"
-            : "líneas fuera del total"}{" "}
-          por falta de precio. Generá otro con el precio escrito a mano.
+            ? "línea sin precio, fuera del total"
+            : "líneas sin precio, fuera del total"}.
         </p>
       )}
 
       <p className={s.hint}>
         <FileText className="mr-1 inline h-3 w-3 align-[-1px]" />
-        Solo materiales. Cantidades estimadas; precios de tienda a la fecha
-        indicada. CSV y PDF en bolivianos.
+        Cantidades estimadas · precios a la fecha.
         {guardando && <Loader2 className="ml-2 inline h-3 w-3 animate-spin" />}
       </p>
     </div>

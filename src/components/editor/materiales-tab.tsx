@@ -12,6 +12,7 @@ import {
 import { buildResetSurfaceMaterialUpdates, useEditor } from "@pascal-app/editor";
 import { resolveCdnUrl, useViewer } from "@pascal-app/viewer";
 import { ChevronRight, Eraser, RotateCcw, Search } from "lucide-react";
+import { materialLabel } from "@/lib/material-labels";
 import s from "./editor.module.css";
 
 /** Nombre en español de cada categoría de la biblioteca de materiales. */
@@ -29,68 +30,6 @@ const CATEGORY_LABELS: Record<MaterialCategory, string> = {
   ground: "Terreno",
   glass: "Vidrio",
 };
-
-/**
- * Traducción de los nombres de la biblioteca. Los ids no se traducen (son la
- * clave del preset) pero el texto que ve el usuario sí.
- */
-const MATERIAL_LABELS: Record<string, string> = {
-  // Colores
-  "preset-white": "Blanco",
-  "preset-softwhite": "Blanco suave",
-  "preset-cream": "Crema",
-  "preset-beige": "Beige",
-  "preset-lightgrey": "Gris claro",
-  "preset-greige": "Greige",
-  "preset-midgrey": "Gris medio",
-  "preset-charcoal": "Grafito",
-  "preset-nearblack": "Negro intenso",
-  "preset-blush": "Rubor",
-  "preset-tomato": "Tomate",
-  "preset-brickred": "Rojo ladrillo",
-  "preset-oxblood": "Granate",
-  "preset-peach": "Durazno",
-  "preset-terracotta": "Terracota",
-  "preset-burntorange": "Naranja tostado",
-  "preset-clay": "Arcilla",
-  "preset-paleyellow": "Amarillo pálido",
-  "preset-mustard": "Mostaza",
-  "preset-ochre": "Ocre",
-  "preset-gold": "Dorado",
-  "preset-mint": "Menta",
-  "preset-sage": "Salvia",
-  "preset-olive": "Oliva",
-  "preset-forest": "Bosque",
-  "preset-paleteal": "Verde agua claro",
-  "preset-teal": "Verde azulado",
-  "preset-deepteal": "Verde azulado oscuro",
-  "preset-powderblue": "Azul polvo",
-  "preset-softblue": "Azul suave",
-  "preset-sky": "Cielo",
-  "preset-slateblue": "Azul pizarra",
-  "preset-royalblue": "Azul real",
-  "preset-navy": "Azul marino",
-  "preset-lavender": "Lavanda",
-  "preset-plum": "Ciruela",
-  "preset-aubergine": "Berenjena",
-  "preset-petal": "Pétalo",
-  "preset-rose": "Rosa",
-  "preset-dustyrose": "Rosa apagado",
-  "preset-berry": "Baya",
-  "preset-sand": "Arena",
-  "preset-tan": "Canela",
-  "preset-taupe": "Taupe",
-  "preset-espresso": "Expreso",
-  // Metal y vidrio
-  "preset-metal": "Metal",
-  "preset-glass": "Vidrio",
-};
-
-function materialLabel(id: string, fallback: string): string {
-  const base = MATERIAL_LABELS[id] ?? fallback;
-  // Quita el sufijo numérico de los presets de textura ("Wood Parquet 14").
-  return base.replace(/\s+\d+$/, "");
-}
 
 /**
  * Pestaña de pinturas y materiales.

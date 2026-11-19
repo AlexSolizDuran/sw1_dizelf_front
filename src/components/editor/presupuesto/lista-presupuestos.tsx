@@ -57,10 +57,7 @@ export function ListaPresupuestos({
       {cargando && lista.length === 0 ? (
         <p className={s.vacio}>Cargando…</p>
       ) : lista.length === 0 ? (
-        <p className={s.vacio}>
-          Todavía no hay presupuestos. Generá el primero con las líneas de
-          arriba.
-        </p>
+        <p className={s.vacio}>Sin presupuestos todavía.</p>
       ) : (
         <ul className={s.lista}>
           {lista.map((presupuesto) => (
@@ -100,7 +97,7 @@ export function ListaPresupuestos({
                   className={s.badge}
                   title="El plano cambió desde que se generó este presupuesto"
                 >
-                  plano cambiado
+                  desactualizado
                 </span>
               )}
 

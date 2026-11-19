@@ -124,13 +124,17 @@ export function PanelPresupuesto({
     // actualizan y las que agregó el usuario a mano se respetan. Borrar todo
     // cada vez que alguien vuelve a medir sería perder su trabajo.
     setLineas((previas) => {
-      const porClave = new Map(resultado.lineas.map((l) => [l.claveMaterial, l]));
+      // La pintura emite una línea por color con la misma `claveMaterial`: la
+      // identidad para re-medir es `claveSugerencia`, no la clave del producto.
+      const claveDe = (linea: LineaBorrador) =>
+        linea.claveSugerencia ?? linea.claveMaterial;
+      const porClave = new Map(resultado.lineas.map((l) => [claveDe(l), l]));
       const conservadas = previas
-        .filter((linea) => !porClave.has(linea.claveMaterial))
+        .filter((linea) => !porClave.has(claveDe(linea)))
         .map((linea) => linea);
 
       const actualizadas = resultado.lineas.map((nueva) => {
-        const previa = previas.find((l) => l.claveMaterial === nueva.claveMaterial);
+        const previa = previas.find((l) => claveDe(l) === claveDe(nueva));
         return previa
           ? { ...nueva, id: previa.id, precioManualBs: previa.precioManualBs }
           : nueva;
@@ -187,16 +191,21 @@ export function PanelPresupuesto({
       nombre: nombre.trim(),
       recetaVersion: RECETA_VERSION,
       tipoCambioUsd: tasa,
-      lineas: lineas.map(({ material: _material, supuesto: _supuesto, id: _id, ...resto }) => resto),
+      lineas: lineas.map(
+        ({
+          material: _material,
+          supuesto: _supuesto,
+          claveSugerencia: _claveSugerencia,
+          id: _id,
+          ...resto
+        }) => resto
+      ),
     });
   }, [nombre, tipoCambio, lineas, presupuestos]);
 
   const renombrar = useCallback(async () => {
     if (!presupuestos.detalle) return;
-    const entrada = window.prompt(
-      "Nuevo nombre del presupuesto:",
-      presupuestos.detalle.nombre
-    );
+    const entrada = window.prompt("Nuevo nombre:", presupuestos.detalle.nombre);
     if (entrada === null) return;
     const limpio = entrada.trim();
     if (limpio.length < 3) return;
@@ -206,7 +215,7 @@ export function PanelPresupuesto({
   const eliminar = useCallback(
     async (presupuestoId: string, nombrePresupuesto: string) => {
       const ok = window.confirm(
-        `Eliminar «${nombrePresupuesto}». No se puede deshacer y no afecta al plano.`
+        `Eliminar «${nombrePresupuesto}»? No se puede deshacer.`
       );
       if (!ok) return;
       await presupuestos.eliminar(presupuestoId);
@@ -231,10 +240,8 @@ export function PanelPresupuesto({
             <Calculator className="h-4 w-4" />
           </span>
           <div className={s.headerTexto}>
-            <h1 className={s.tituloPanel}>Presupuesto de materiales</h1>
-            <p className={s.subtitulo}>
-              {nombreProyecto} · precio en Bs y USD
-            </p>
+            <h1 className={s.tituloPanel}>Presupuesto</h1>
+            <p className={s.subtitulo}>{nombreProyecto}</p>
           </div>
 
           <div className={s.seg}>
@@ -290,8 +297,7 @@ export function PanelPresupuesto({
               {!puedeEditar && (
                 <p className={s.avisoPendiente}>
                   <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
-                  Solo lectura: podés ver el historial, pero no generar ni
-                  borrar presupuestos.
+                  Solo lectura: no podés generar ni borrar presupuestos.
                 </p>
               )}
 
